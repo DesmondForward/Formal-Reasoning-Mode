@@ -457,12 +457,12 @@ Populate required arrays with at least three well-formed entries where applicabl
 All numeric fields should be realistic and include units where the schema expects them.
 Return strictly JSON with no Markdown fences or commentary.`
 
-type ExampleGenerationOptions = {
+type SchemaGenerationOptions = {
   domain?: string
   scenarioHint?: string
 }
 
-const buildUserPrompt = (options: ExampleGenerationOptions = {}): string => {
+const buildUserPrompt = (options: SchemaGenerationOptions = {}): string => {
   const domainInstruction = options.domain
     ? `Focus on the ${options.domain} domain.`
     : 'Select an appropriate domain such as medicine, biology, public_health, chemistry, engineering, economics, or general, but rotate domains across runs.'
@@ -940,7 +940,7 @@ const removeExtraProperties = (obj: unknown): unknown => {
   return result
 }
 
-const generateAIExample = async (options: ExampleGenerationOptions = {}) => {
+const generateAISchema = async (options: SchemaGenerationOptions = {}) => {
   const { apiKey, model, apiUrl } = getOpenAIConfig()
 
   if (!apiKey) {
@@ -1294,9 +1294,9 @@ app.whenReady().then(() => {
       : dialog.showMessageBox(options)
   })
 
-  ipcMain.handle('generate-ai-example', async (_event, options: ExampleGenerationOptions = {}) => {
+  ipcMain.handle('generate-ai-example', async (_event, options: SchemaGenerationOptions = {}) => {
     try {
-      return await generateAIExample(options)
+      return await generateAISchema(options)
     } catch (error) {
       console.error('Failed to generate AI schema', error)
       if (error instanceof Error) {
