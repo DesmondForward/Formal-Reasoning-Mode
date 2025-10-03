@@ -131,13 +131,13 @@ npm run dist:linux    # Linux only
 ## 🎨 Screenshots
 
 ### **Main Editor Interface**
-![Schema Editor](https://via.placeholder.com/800x500/1e293b/ffffff?text=Schema+Editor+Interface)
+![Schema Editor](./images/main-editor-interface.png)
 
 ### **Real-time Validation**
-![Validation Panel](https://via.placeholder.com/800x500/1e293b/ffffff?text=Validation+Panel)
+![Validation Panel](./images/validation-panel.png)
 
 ### **Model Visualization**
-![Visualization Panel](https://via.placeholder.com/800x500/1e293b/ffffff?text=Model+Visualization)
+![Visualization Panel](./images/visualization-panel.png)
 
 ## 🔧 Configuration
 
