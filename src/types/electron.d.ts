@@ -12,7 +12,7 @@ export interface CommunicationEvent {
 export interface ElectronAPI {
   getAppVersion: () => Promise<string>
   showMessageBox: (options: any) => Promise<any>
-  generateAIExample: (options?: Record<string, unknown>) => Promise<unknown>
+  generateAISchema: (options?: Record<string, unknown>) => Promise<unknown>
   onMenuNewProblem: (callback: () => void) => void
   onMenuOpen: (callback: () => void) => void
   onMenuSave: (callback: () => void) => void
