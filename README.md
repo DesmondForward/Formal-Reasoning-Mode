@@ -51,7 +51,7 @@ The application features **AI-powered novelty assurance**, **Model Context Proto
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/formal-reasoning-mode.git
+git clone https://github.com/DesmondForward/formal-reasoning-mode.git
 cd formal-reasoning-mode
 
 # Install dependencies
@@ -267,7 +267,7 @@ We welcome contributions! Here's how to get started:
 
 ```bash
 # Fork and clone the repository
-git clone https://github.com/your-username/formal-reasoning-mode.git
+git clone https://github.com/DesmondForward/formal-reasoning-mode.git
 cd formal-reasoning-mode
 
 # Install dependencies
@@ -305,9 +305,9 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 
 ## 📞 Support
 
-- **📖 Documentation**: [Wiki](https://github.com/your-username/formal-reasoning-mode/wiki)
-- **🐛 Issues**: [GitHub Issues](https://github.com/your-username/formal-reasoning-mode/issues)
-- **💬 Discussions**: [GitHub Discussions](https://github.com/your-username/formal-reasoning-mode/discussions)
+- **📖 Documentation**: [Wiki](https://github.com/DesmondForward/formal-reasoning-mode/wiki)
+- **🐛 Issues**: [GitHub Issues](https://github.com/DesmondForward/formal-reasoning-mode/issues)
+- **💬 Discussions**: [GitHub Discussions](https://github.com/DesmondForward/formal-reasoning-mode/discussions)
 
 ---
 

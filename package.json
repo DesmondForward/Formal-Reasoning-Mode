@@ -86,6 +86,8 @@
     "directories": {
       "output": "release"
     },
+    "forceCodeSigning": false,
+    "buildDependenciesFromSource": false,
     "files": [
       "dist/**/*",
       "node_modules/**/*"
@@ -95,10 +97,19 @@
       "target": "dmg"
     },
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "sign": false,
+      "verifyUpdateCodeSignature": false,
+      "forceCodeSigning": false,
+      "certificateFile": null,
+      "certificatePassword": null
     },
     "linux": {
       "target": "AppImage"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
     }
   }
 }
