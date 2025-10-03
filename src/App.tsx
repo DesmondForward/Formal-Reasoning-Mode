@@ -32,7 +32,7 @@ import { useFRMData } from '@/hooks/useFRMData'
 import { useValidation } from '@/hooks/useValidation'
 import { useTheme } from '@/hooks/useTheme'
 import frmSchema from '/frm_schema.json'
-import { generateExampleProblem } from '@/utils/exampleGenerator'
+import { generateSchemaProblem } from '@/utils/schemaGenerator'
 
 import './App.css'
 
@@ -96,7 +96,7 @@ const App: React.FC = () => {
         if (domain) options.domain = domain
         if (subDomain) options.scenarioHint = subDomain
         
-        const { data: candidate, source, errorMessage } = await generateExampleProblem(options)
+        const { data: candidate, source, errorMessage } = await generateSchemaProblem(options)
         const generationValidation = validateUnknown(candidate)
 
         if (generationValidation.isValid && generationValidation.data) {
