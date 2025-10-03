@@ -335,7 +335,7 @@ const App: React.FC = () => {
             initial={{ x: -300, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             transition={{ delay: 0.1 }}
-            className="w-80 flex-shrink-0 overflow-y-auto border-r bg-white/50 backdrop-blur-sm dark:bg-slate-900/50"
+            className="w-[28rem] flex-shrink-0 overflow-y-auto border-r bg-white/50 backdrop-blur-sm dark:bg-slate-900/50"
           >
             <div className="p-6">
               <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
