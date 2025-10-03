@@ -182,7 +182,7 @@ The application is fully driven by `frm_schema.json`. To extend or modify the sc
 
 ```typescript
 // Generate a medicine domain schema
-const example = await generateExampleProblem({
+const example = await generateSchemaProblem({
   domain: 'medicine',
   scenarioHint: 'epidemic modeling with vaccination'
 })
