@@ -24,6 +24,14 @@
   ],
   "author": "FRM Team",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/DesmondForward/formal-reasoning-mode.git"
+  },
+  "bugs": {
+    "url": "https://github.com/DesmondForward/formal-reasoning-mode/issues"
+  },
+  "homepage": "https://github.com/DesmondForward/formal-reasoning-mode#readme",
   "devDependencies": {
     "@types/node": "^20.10.0",
     "@types/react": "^18.2.45",
