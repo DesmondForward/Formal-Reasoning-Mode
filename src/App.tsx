@@ -89,7 +89,7 @@ const App: React.FC = () => {
 
     console.log('App: Rendering main UI')
 
-    const handleGenerateExample = async (domain?: string, subDomain?: string) => {
+    const handleGenerateSchema = async (domain?: string, subDomain?: string) => {
       setIsGenerating(true)
       try {
         const options: { domain?: string; scenarioHint?: string } = {}
@@ -323,7 +323,7 @@ const App: React.FC = () => {
             onValueChange={setSelectedDomain}
             subDomainValue={subDomainDescription}
             onSubDomainChange={setSubDomainDescription}
-            onGenerateSchema={() => handleGenerateExample(selectedDomain || undefined, subDomainDescription || undefined)}
+            onGenerateSchema={() => handleGenerateSchema(selectedDomain || undefined, subDomainDescription || undefined)}
             isGenerating={isGenerating}
           />
         </div>

@@ -480,6 +480,10 @@ const buildUserPrompt = (options: SchemaGenerationOptions = {}): string => {
     '- Each equation in "modeling.equations" MUST include: id, lhs, rhs, mechanism_link, novelty_tag, prior_art_citations, divergence_note',
     '- Each item in "modeling.measurement_model" MUST include: observable, expression, noise_model, novelty_tag, prior_art_citations, divergence_note',
     '- The "modeling.symbolic_regression" object MUST include: algorithm_type, function_library, search_strategy, data_description, benchmark_reference, novelty_metrics',
+    '- CRITICAL: search_strategy MUST be exactly one of: "reinforcement_learning", "evolutionary", "beam_search", "random_search", "other" (NO other values allowed)',
+    '- CRITICAL: novelty_metrics array items MUST be exactly one of: "cosine_embedding", "rougeL", "jaccard_terms", "nli_contradiction", "qa_novelty", "citation_overlap", "novascore", "relative_neighbor_density", "creativity_index" (NO other values allowed)',
+    '- CRITICAL: optimization_problem.solver MUST be exactly one of: "scipy", "cvxpy", "gurobi", "cplex" (NO other values allowed)',
+    '- CRITICAL: inference_problem.sampler MUST be exactly one of: "mcmc", "vi", "hmc", "nuts" (NO other values allowed)',
     '- The "validation" section MUST include ALL fields: unit_consistency_check, mechanism_coverage_check, constraint_satisfaction_metrics, fit_quality_metrics, counterfactual_sanity, novelty_gate_pass, novelty_checks, generalization_checks, scientific_alignment_checks, expert_review',
     '- The "output_contract" section MUST include ALL fields: sections_required, formatting, safety_note, interpretability_requirements',
     '- The "output_contract.formatting" object MUST include: math_notation, number_format, significant_figures, novelty_badge',
@@ -979,7 +983,7 @@ const generateAISchema = async (options: SchemaGenerationOptions = {}) => {
         reasoning: {
           effort: 'low',
         },
-        max_output_tokens: 8192,
+        max_output_tokens: 200000,
       }),
     })
 
