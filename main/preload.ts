@@ -4,7 +4,7 @@ const { contextBridge, ipcRenderer } = electron
 contextBridge.exposeInMainWorld('electronAPI', {
   getAppVersion: () => ipcRenderer.invoke('get-app-version'),
   showMessageBox: (options: any) => ipcRenderer.invoke('show-message-box', options),
-  generateAIExample: (options?: Record<string, unknown>) =>
+  generateAISchema: (options?: Record<string, unknown>) =>
     ipcRenderer.invoke('generate-ai-example', options ?? {}),
 
   // Menu event listeners
