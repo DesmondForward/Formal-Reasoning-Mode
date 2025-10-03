@@ -115,7 +115,7 @@ npm run dist:linux   # Linux AppImage
 │   │   ├── typeGuards.ts       # Runtime type validation
 │   │   ├── validation.ts       # Validation utilities
 │   │   ├── schemaMigration.ts  # Schema migration tools
-│   │   └── exampleGenerator.ts # AI example generation
+│   │   └── schemaGenerator.ts # AI schema generation
 │   └── App.tsx                 # Application root
 ├── 📄 frm_schema.json          # Enhanced FRM JSON Schema with novelty assurance
 └── 📄 package.json             # Dependencies and scripts
