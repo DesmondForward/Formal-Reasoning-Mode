@@ -144,19 +144,34 @@ Each response must be a single JSON object conforming to the FRM schema with the
 
 CRITICAL SCHEMA REQUIREMENTS:
 - The "input" section MUST include: problem_summary, scope_objective, known_quantities (array), unknowns (array), mechanistic_notes (string), constraints_goals (object)
-- The "modeling" section MUST include: model_class (string), variables (array), equations (array)
-- Each equation in the "modeling.equations" array MUST include: id, lhs, rhs, mechanism_link, novelty_tag ("new", "variant", "borrowed", or "baseline")
+- The "modeling" section MUST include: model_class (string), variables (array), equations (array), initial_conditions (array), measurement_model (array), assumptions (array), interpretability_required (boolean), symbolic_regression (object)
+- Each equation in the "modeling.equations" array MUST include: id, lhs, rhs, mechanism_link, novelty_tag ("new", "variant", "borrowed", or "baseline"), prior_art_citations (array), divergence_note (string)
+- Each item in "modeling.measurement_model" array MUST include: observable (string), expression (string), noise_model (string), novelty_tag (string), prior_art_citations (array), divergence_note (string)
+- The "modeling.symbolic_regression" object MUST include: algorithm_type, function_library (array), search_strategy, data_description (string), benchmark_reference (string), novelty_metrics (array)
 - CRITICAL: Every equation MUST have a novelty_tag property - this is REQUIRED and will cause validation failure if missing
-- The "validation" section MUST include: unit_consistency_check (boolean), mechanism_coverage_check (boolean), constraint_satisfaction_metrics (array), fit_quality_metrics (array), counterfactual_sanity (object), novelty_gate_pass (boolean)
+- The "validation" section MUST include: unit_consistency_check (boolean), mechanism_coverage_check (boolean), constraint_satisfaction_metrics (array), fit_quality_metrics (array), counterfactual_sanity (object), novelty_gate_pass (boolean), novelty_checks (array), generalization_checks (array), scientific_alignment_checks (array), expert_review (object)
 - CRITICAL: The validation section MUST include novelty_gate_pass: true - this is REQUIRED and will cause validation failure if missing
-- The "output_contract" section MUST include: sections_required (array with specific constants), formatting (object), safety_note (string)
+- Each item in "validation.novelty_checks" array MUST include: name (string), passed (boolean), value (number), threshold (number), direction ("lower_is_better" or "higher_is_better"), notes (string)
+- Each item in "validation.generalization_checks" array MUST include: dataset_used (string), metric_name (string), value (number), threshold (number), passed (boolean), notes (string)
+- Each item in "validation.scientific_alignment_checks" array MUST include: principle_name (string), passed (boolean), comment (string)
+- The "validation.expert_review" object MUST include: experts (array), summary (string), interpretability_score (number)
+- The "output_contract" section MUST include: sections_required (array with specific constants), formatting (object), safety_note (string), interpretability_requirements (object)
 - The "output_contract.sections_required" array MUST contain these exact strings: "VariablesAndUnitsTable", "ModelEquations", "MethodStatement", "Results", "Validation", "ActionableRecommendation", "RefinementHooks", "Novelty Statement", "Prior Work Comparison", "Redundancy Check", "Evidence & Citations"
-- The "novelty_assurance" section MUST include: prior_work, citations, citation_checks, similarity_assessment, novelty_claims, redundancy_check, evidence_tracking, error_handling
-- Each item in "novelty_claims" MUST include: id (pattern ^NC[0-9]+$), statement (min 20 chars), category (one of: "model", "equation", "method", "problem", "analysis", "dataset", "system"), evidence_citations (array)
-- The "solution_and_analysis" section MUST include: solution_requests (array), sensitivity_analysis (object), uncertainty_propagation (object)
+- The "output_contract.formatting" object MUST include: math_notation, number_format, significant_figures, novelty_badge (object)
+- The "output_contract.interpretability_requirements" object MUST include: narrative_explanation (boolean), complexity_limit (string)
+- The "novelty_assurance" section MUST include: prior_work, citations, citation_checks, similarity_assessment, novelty_claims, redundancy_check, evidence_tracking, error_handling, evaluation_dataset (object)
+- Each item in "novelty_claims" MUST include: id (pattern ^NC[0-9]+$), statement (min 20 chars), category (one of: "model", "equation", "method", "problem", "analysis", "dataset", "system"), evidence_citations (array), tests (array), expected_impact (string), creativity_scores (object)
+- Each item in "novelty_claims.tests" array MUST include: name (string), result (string), evidence_citation_ids (array)
+- The "novelty_claims.creativity_scores" object MUST include: originality (number), feasibility (number), impact (number), reliability (number)
+- The "similarity_assessment" object MUST include: metrics (array), aggregates (object), self_overlap_ratio (number), cross_domain_performance (object)
+- The "evidence_tracking" object MUST include: evidence_map (array), artifacts (array)
+- Each item in "evidence_tracking.artifacts" array MUST include: type (string), uri (string), hash (string)
+- The "solution_and_analysis" section MUST include: solution_requests (array), sensitivity_analysis (object), uncertainty_propagation (object), optimization_problem (object), inference_problem (object)
 - solution_requests array items MUST be exactly one of: "solve_numeric", "solve_analytic", "optimize", "infer" (NO other values allowed)
 - sensitivity_analysis object MUST have exactly: type ("local", "sobol", or "bootstrap"), parameters (array of strings), perturbation_fraction (number >= 0)
 - uncertainty_propagation object MUST have exactly: method ("delta_method", "sampling", or "bayesian"), n_samples (integer >= 1)
+- The "optimization_problem" object MUST include: objective (string), constraints (array), solver (string)
+- The "inference_problem" object MUST include: prior (string), likelihood (string), sampler (string)
 - All arrays must have at least the minimum required items as specified in the schema
 - All required string fields must be non-empty
 - All required object fields must be present and properly structured
@@ -208,12 +223,36 @@ EXAMPLE STRUCTURE (use as template):
         "lhs": "dX/dt",
         "rhs": "-k1*X",
         "mechanism_link": "First-order decay",
-        "novelty_tag": "new"
+        "novelty_tag": "new",
+        "prior_art_citations": [],
+        "divergence_note": "Standard first-order kinetics"
       }
     ],
     "initial_conditions": [{"variable": "X", "value": 100, "units": "mg/L"}],
-    "measurement_model": [],
-    "assumptions": ["Constant rate parameters"]
+    "measurement_model": [
+      {
+        "observable": "X_obs",
+        "expression": "X + noise",
+        "noise_model": "Gaussian(0, sigma^2)",
+        "novelty_tag": "baseline",
+        "prior_art_citations": [],
+        "divergence_note": "Standard measurement model"
+      }
+    ],
+    "assumptions": ["Constant rate parameters", "Well-mixed system"],
+    "interpretability_required": true,
+    "symbolic_regression": {
+      "algorithm_type": "genetic_programming",
+      "function_library": [
+        {"name": "add", "allowed": true},
+        {"name": "multiply", "allowed": true},
+        {"name": "exp", "allowed": true}
+      ],
+      "search_strategy": "evolutionary",
+      "data_description": "Time series data with noise",
+      "benchmark_reference": "Standard PK models",
+      "novelty_metrics": ["cosine_embedding", "rougeL"]
+    }
   },
   "method_selection": {
     "problem_type": "dynamics",
@@ -227,6 +266,16 @@ EXAMPLE STRUCTURE (use as template):
   },
   "solution_and_analysis": {
     "solution_requests": ["solve_numeric"],
+    "optimization_problem": {
+      "objective": "minimize integral of X(t) dt",
+      "constraints": ["X >= 0", "dX/dt <= 0"],
+      "solver": "scipy"
+    },
+    "inference_problem": {
+      "prior": "Gaussian(0, 1)",
+      "likelihood": "Gaussian(X_obs, sigma^2)",
+      "sampler": "mcmc"
+    },
     "sensitivity_analysis": {
       "type": "local",
       "parameters": ["k1"],
@@ -240,10 +289,46 @@ EXAMPLE STRUCTURE (use as template):
   "validation": {
     "unit_consistency_check": true,
     "mechanism_coverage_check": true,
-    "constraint_satisfaction_metrics": [],
-    "fit_quality_metrics": [],
+    "constraint_satisfaction_metrics": [
+      {"name": "constraint_violation_ratio", "value": 0.05, "threshold": 0.1}
+    ],
+    "fit_quality_metrics": [
+      {"name": "RMSE", "value": 0.12, "threshold": 0.2}
+    ],
     "counterfactual_sanity": {"enabled": true, "perturb_percent": 10},
-    "novelty_gate_pass": true
+    "novelty_gate_pass": true,
+    "novelty_checks": [
+      {
+        "name": "similarity_threshold",
+        "passed": true,
+        "value": 0.3,
+        "threshold": 0.7,
+        "direction": "lower_is_better",
+        "notes": "Low similarity indicates novelty"
+      }
+    ],
+    "generalization_checks": [
+      {
+        "dataset_used": "test_dataset_v1",
+        "metric_name": "accuracy",
+        "value": 0.85,
+        "threshold": 0.8,
+        "passed": true,
+        "notes": "Good generalization performance"
+      }
+    ],
+    "scientific_alignment_checks": [
+      {
+        "principle_name": "conservation_of_mass",
+        "passed": true,
+        "comment": "Mass is conserved in the model"
+      }
+    ],
+    "expert_review": {
+      "experts": ["Dr. Smith", "Dr. Jones"],
+      "summary": "Model shows good scientific rigor and novelty",
+      "interpretability_score": 0.8
+    }
   },
   "output_contract": {
     "sections_required": [
@@ -262,7 +347,16 @@ EXAMPLE STRUCTURE (use as template):
     "formatting": {
       "math_notation": "LaTeX",
       "number_format": "auto",
-      "significant_figures": 4
+      "significant_figures": 4,
+      "novelty_badge": {
+        "enabled": true,
+        "style": "highlight",
+        "text": "Novel Contribution"
+      }
+    },
+    "interpretability_requirements": {
+      "narrative_explanation": true,
+      "complexity_limit": "moderate"
     },
     "safety_note": "No safety concerns identified"
   },
@@ -293,14 +387,36 @@ EXAMPLE STRUCTURE (use as template):
         "max_similarity": 0.2,
         "min_novelty_score": 0.85,
         "passes": true
+      },
+      "self_overlap_ratio": 0.05,
+      "cross_domain_performance": {
+        "metric_name": "accuracy",
+        "value": 0.82,
+        "threshold": 0.75,
+        "passed": true,
+        "notes": "Good performance across domains"
       }
     },
     "novelty_claims": [
       {
         "id": "NC1",
-        "statement": "Novel mathematical model for drug clearance",
+        "statement": "Novel mathematical model for drug clearance with improved accuracy",
         "category": "model",
-        "evidence_citations": ["CIT001", "CIT002"]
+        "evidence_citations": ["CIT001", "CIT002"],
+        "tests": [
+          {
+            "name": "statistical_significance",
+            "result": "p < 0.05",
+            "evidence_citation_ids": ["CIT001"]
+          }
+        ],
+        "expected_impact": "Improved drug dosing recommendations",
+        "creativity_scores": {
+          "originality": 0.8,
+          "feasibility": 0.9,
+          "impact": 0.7,
+          "reliability": 0.85
+        }
       }
     ],
     "redundancy_check": {
@@ -313,7 +429,19 @@ EXAMPLE STRUCTURE (use as template):
       "evidence_map": [
         {"section": "modeling", "claim_id": "NC1", "citation_ids": ["CIT001", "CIT002"]}
       ],
-      "artifacts": []
+      "artifacts": [
+        {
+          "type": "code",
+          "uri": "https://github.com/example/model.py",
+          "hash": "abc123def456"
+        }
+      ]
+    },
+    "evaluation_dataset": {
+      "name": "PK_validation_dataset",
+      "description": "Clinical pharmacokinetic data for validation",
+      "data_scope": "Phase II clinical trials",
+      "anonymization_methods": "Patient IDs removed, dates offset"
     },
     "error_handling": {
       "novelty_errors": [],
@@ -346,9 +474,17 @@ const buildUserPrompt = (options: ExampleGenerationOptions = {}): string => {
     scenarioHint,
     'CRITICAL SCHEMA COMPLIANCE REQUIREMENTS:',
     '- The "input" section MUST include ALL required fields: problem_summary, scope_objective, known_quantities (array), unknowns (array), mechanistic_notes (string), constraints_goals (object)',
-    '- The "modeling" section MUST include ALL required fields: model_class (string), variables (array), equations (array)',
-    '- The "modeling" section MUST NOT include any additional properties beyond: model_class, variables, equations, initial_conditions, measurement_model, assumptions',
+    '- The "modeling" section MUST include ALL required fields: model_class (string), variables (array), equations (array), initial_conditions (array), measurement_model (array), assumptions (array), interpretability_required (boolean), symbolic_regression (object)',
+    '- The "modeling" section MUST NOT include any additional properties beyond: model_class, variables, equations, initial_conditions, measurement_model, assumptions, interpretability_required, symbolic_regression',
     '- model_class MUST be exactly one of: "ODE", "PDE", "DAE", "SDE", "discrete", "hybrid" (NO other values allowed)',
+    '- Each equation in "modeling.equations" MUST include: id, lhs, rhs, mechanism_link, novelty_tag, prior_art_citations, divergence_note',
+    '- Each item in "modeling.measurement_model" MUST include: observable, expression, noise_model, novelty_tag, prior_art_citations, divergence_note',
+    '- The "modeling.symbolic_regression" object MUST include: algorithm_type, function_library, search_strategy, data_description, benchmark_reference, novelty_metrics',
+    '- The "validation" section MUST include ALL fields: unit_consistency_check, mechanism_coverage_check, constraint_satisfaction_metrics, fit_quality_metrics, counterfactual_sanity, novelty_gate_pass, novelty_checks, generalization_checks, scientific_alignment_checks, expert_review',
+    '- The "output_contract" section MUST include ALL fields: sections_required, formatting, safety_note, interpretability_requirements',
+    '- The "output_contract.formatting" object MUST include: math_notation, number_format, significant_figures, novelty_badge',
+    '- The "novelty_assurance" section MUST include ALL fields: prior_work, citations, citation_checks, similarity_assessment, novelty_claims, redundancy_check, evidence_tracking, error_handling, evaluation_dataset',
+    '- The "solution_and_analysis" section MUST include ALL fields: solution_requests, sensitivity_analysis, uncertainty_propagation, optimization_problem, inference_problem',
     '- constraints_goals must be an object with hard_constraints (array), soft_preferences (array), and objective (object)',
     '- All arrays must have at least the minimum required items as specified in the schema',
     '- All required string fields must be non-empty',
@@ -582,6 +718,22 @@ const buildUserPrompt = (options: ExampleGenerationOptions = {}): string => {
     '- unknowns must describe at least four states or parameters with roles, bounds when meaningful, and units.',
     '- equations must capture the governing dynamics with clear ids, lhs, and rhs properties.',
     '- method_selection.chosen_methods must justify each method in one sentence.',
+    '',
+    'COMPLEX NESTED OBJECTS GUIDANCE:',
+    '- modeling.measurement_model: Include realistic measurement models with noise characteristics',
+    '- modeling.symbolic_regression: Use appropriate algorithm_type (genetic_programming, deep_learning, hybrid, other)',
+    '- validation.novelty_checks: Include meaningful novelty assessment metrics with realistic thresholds',
+    '- validation.generalization_checks: Include cross-validation or holdout test results',
+    '- validation.scientific_alignment_checks: Include domain-specific scientific principles',
+    '- validation.expert_review: Include realistic expert assessment with interpretability scores',
+    '- output_contract.interpretability_requirements: Specify narrative explanation and complexity limits',
+    '- output_contract.formatting.novelty_badge: Include novelty highlighting configuration',
+    '- novelty_assurance.similarity_assessment: Include comprehensive similarity metrics and cross-domain performance',
+    '- novelty_assurance.novelty_claims: Include detailed claims with tests, expected impact, and creativity scores',
+    '- novelty_assurance.evidence_tracking: Include evidence mapping and relevant artifacts',
+    '- novelty_assurance.evaluation_dataset: Include dataset description and anonymization methods',
+    '- solution_and_analysis.optimization_problem: Include realistic objective functions and constraints',
+    '- solution_and_analysis.inference_problem: Include appropriate prior distributions and likelihood functions',
     '',
     'EXAMPLE of correct unknowns structure:',
     '[',

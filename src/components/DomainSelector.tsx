@@ -261,7 +261,7 @@ export const DomainSelector: React.FC<DomainSelectorProps> = ({
               <div className="space-y-2">
                 <Input
                   id="subdomain-input"
-                  placeholder="e.g., machine learning, structural analysis, drug discovery..."
+                  placeholder="e.g., machine learning, drug discovery, etc."
                   value={subDomainValue || ''}
                   onChange={(e) => onSubDomainChange(e.target.value)}
                   className="h-12 text-base border-2 hover:border-primary/50 focus:border-primary transition-colors"

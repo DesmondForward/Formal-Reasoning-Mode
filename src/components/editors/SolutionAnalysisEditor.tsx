@@ -187,6 +187,115 @@ export const SolutionAnalysisEditor: React.FC<SolutionAnalysisEditorProps> = ({ 
           </CardContent>
         </Card>
       </motion.div>
+
+      {/* Optimization Problem */}
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Optimization Problem</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Objective Function</Label>
+              <Textarea
+                value={data.optimization_problem?.objective ?? ''}
+                onChange={(event) =>
+                  updateField('optimization_problem', {
+                    ...(data.optimization_problem ?? {}),
+                    objective: event.target.value,
+                  })
+                }
+                placeholder="e.g., minimize integral of X(t) dt"
+                rows={2}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Constraints</Label>
+              <Textarea
+                value={(data.optimization_problem?.constraints ?? []).join('\n')}
+                onChange={(event) =>
+                  updateField('optimization_problem', {
+                    ...(data.optimization_problem ?? {}),
+                    constraints: event.target.value
+                      .split('\n')
+                      .map((constraint) => constraint.trim())
+                      .filter(Boolean),
+                  })
+                }
+                placeholder="Enter constraints, one per line"
+                rows={3}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Solver</Label>
+              <Input
+                value={data.optimization_problem?.solver ?? ''}
+                onChange={(event) =>
+                  updateField('optimization_problem', {
+                    ...(data.optimization_problem ?? {}),
+                    solver: event.target.value,
+                  })
+                }
+                placeholder="e.g., scipy, cvxpy, gurobi"
+              />
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Inference Problem */}
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Inference Problem</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Prior Distribution</Label>
+              <Input
+                value={data.inference_problem?.prior ?? ''}
+                onChange={(event) =>
+                  updateField('inference_problem', {
+                    ...(data.inference_problem ?? {}),
+                    prior: event.target.value,
+                  })
+                }
+                placeholder="e.g., Gaussian(0, 1)"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Likelihood Function</Label>
+              <Input
+                value={data.inference_problem?.likelihood ?? ''}
+                onChange={(event) =>
+                  updateField('inference_problem', {
+                    ...(data.inference_problem ?? {}),
+                    likelihood: event.target.value,
+                  })
+                }
+                placeholder="e.g., Gaussian(X_obs, sigma^2)"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Sampler</Label>
+              <Input
+                value={data.inference_problem?.sampler ?? ''}
+                onChange={(event) =>
+                  updateField('inference_problem', {
+                    ...(data.inference_problem ?? {}),
+                    sampler: event.target.value,
+                  })
+                }
+                placeholder="e.g., mcmc, vi, hmc, nuts"
+              />
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
     </div>
   )
 }
