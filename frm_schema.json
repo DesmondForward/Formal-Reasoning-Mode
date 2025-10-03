@@ -1,0 +1,1897 @@
+{
+  "name": "FRM_Schema",
+  "$id": "https://example.org/schemas/formal-reasoning-mode.schema.json",
+  "title": "Formal Reasoning Mode (FRM) Prompt Schema",
+  "description": "Enhanced schema to drive equation‑first, mechanism‑level reasoning for GPT‑5 with explicit support for symbolic regression, search‑integrated reasoning and rigorous novelty assurance.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "metadata",
+    "input",
+    "modeling",
+    "method_selection",
+    "solution_and_analysis",
+    "validation",
+    "output_contract",
+    "novelty_assurance"
+  ],
+  "properties": {
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "problem_id",
+        "domain",
+        "version"
+      ],
+      "properties": {
+        "problem_id": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9_-]+$"
+        },
+        "domain": {
+          "type": "string",
+          "enum": [
+            "artificial_intelligence",
+            "astrophysics",
+            "autonomous_systems",
+            "biology",
+            "chemical_engineering",
+            "chemistry",
+            "climate_science",
+            "computational_finance",
+            "cybersecurity",
+            "data_science",
+            "economics",
+            "energy_systems",
+            "engineering",
+            "fluid_dynamics",
+            "fluid_mechanics",
+            "general",
+            "geosciences",
+            "materials_science",
+            "medicine",
+            "neuroscience",
+            "network_science",
+            "public_health",
+            "quantum_computing",
+            "renewable_energy",
+            "robotics",
+            "signal_processing",
+            "social_science",
+            "space_technology",
+            "synthetic_biology",
+            "systems_biology"
+          ]
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^v?\\d+\\.\\d+(\\.\\d+)?(-[a-zA-Z0-9]+)?$"
+        },
+        "notes": {
+          "type": "string"
+        },
+        "novelty_context": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "problem_lineage_note": {
+              "type": "string"
+            },
+            "known_baselines": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "intended_contribution_type": {
+              "type": "string",
+              "enum": [
+                "model",
+                "equation",
+                "method",
+                "problem",
+                "analysis",
+                "dataset",
+                "system",
+                "other"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "problem_summary",
+        "scope_objective",
+        "known_quantities",
+        "unknowns",
+        "mechanistic_notes",
+        "constraints_goals"
+      ],
+      "properties": {
+        "problem_summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "scope_objective": {
+          "type": "string",
+          "minLength": 1
+        },
+        "known_quantities": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Quantity"
+          },
+          "minItems": 0
+        },
+        "unknowns": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Variable"
+          },
+          "minItems": 1
+        },
+        "mechanistic_notes": {
+          "type": "string"
+        },
+        "constraints_goals": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "hard_constraints": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Constraint"
+              }
+            },
+            "soft_preferences": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "expression",
+                  "weight"
+                ],
+                "properties": {
+                  "expression": {
+                    "type": "string"
+                  },
+                  "weight": {
+                    "type": "number"
+                  }
+                }
+              }
+            },
+            "objective": {
+              "$ref": "#/definitions/Objective"
+            }
+          }
+        }
+      }
+    },
+    "modeling": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "model_class",
+        "variables",
+        "equations"
+      ],
+      "properties": {
+        "model_class": {
+          "type": "string",
+          "enum": [
+            "ODE",
+            "PDE",
+            "DAE",
+            "SDE",
+            "discrete",
+            "hybrid"
+          ]
+        },
+        "variables": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Variable"
+          },
+          "minItems": 1
+        },
+        "equations": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/Equation"
+          },
+          "contains": {
+            "type": "object",
+            "properties": {
+              "novelty_tag": {
+                "enum": [
+                  "new",
+                  "variant"
+                ]
+              }
+            },
+            "required": [
+              "novelty_tag"
+            ]
+          }
+        },
+        "initial_conditions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/InitialCondition"
+          }
+        },
+        "measurement_model": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observable",
+              "expression",
+              "noise_model"
+            ],
+            "properties": {
+              "observable": {
+                "type": "string"
+              },
+              "expression": {
+                "type": "string"
+              },
+              "noise_model": {
+                "type": "string"
+              },
+              "novelty_tag": {
+                "type": "string",
+                "enum": [
+                  "new",
+                  "variant",
+                  "borrowed",
+                  "baseline"
+                ]
+              },
+              "prior_art_citations": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/CitationID"
+                }
+              },
+              "divergence_note": {
+                "type": "string"
+              }
+            }
+          },
+          "description": "Optional mapping from latent states to observed data."
+        },
+        "assumptions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "interpretability_required": {
+          "type": "boolean",
+          "description": "Indicates if interpretability of the model is required (e.g., for safety‑critical domains)."
+        },
+        "symbolic_regression": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "algorithm_type": {
+              "type": "string",
+              "enum": [
+                "genetic_programming",
+                "deep_learning",
+                "hybrid",
+                "other"
+              ]
+            },
+            "function_library": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "name",
+                  "allowed"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "allowed": {
+                    "type": "boolean"
+                  },
+                  "domain_notes": {
+                    "type": "string"
+                  }
+                }
+              },
+              "description": "List of mathematical functions/operators considered during symbolic regression and whether they are allowed."
+            },
+            "search_strategy": {
+              "type": "string",
+              "enum": [
+                "reinforcement_learning",
+                "evolutionary",
+                "beam_search",
+                "random_search",
+                "other"
+              ]
+            },
+            "data_description": {
+              "type": "string"
+            },
+            "benchmark_reference": {
+              "type": "string"
+            },
+            "novelty_metrics": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "cosine_embedding",
+                  "rougeL",
+                  "jaccard_terms",
+                  "nli_contradiction",
+                  "qa_novelty",
+                  "citation_overlap",
+                  "novascore",
+                  "relative_neighbor_density",
+                  "creativity_index"
+                ]
+              }
+            }
+          },
+          "description": "Details for symbolic regression tasks including algorithm, search strategy, function library and dataset used for equation discovery."
+        }
+      }
+    },
+    "method_selection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "problem_type",
+        "chosen_methods"
+      ],
+      "properties": {
+        "problem_type": {
+          "type": "string",
+          "enum": [
+            "dynamics",
+            "optimization",
+            "inference",
+            "simulation"
+          ]
+        },
+        "chosen_methods": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "justification"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "justification": {
+                "type": "string"
+              },
+              "prior_art_citations": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/CitationID"
+                }
+              },
+              "novelty_diff": {
+                "type": "string"
+              },
+              "novelty_tag": {
+                "type": "string",
+                "enum": [
+                  "new",
+                  "variant",
+                  "borrowed",
+                  "baseline"
+                ]
+              },
+              "tolerances": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "absolute": {
+                    "type": "number"
+                  },
+                  "relative": {
+                    "type": "number"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "search_integration": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "tools_used": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "strategy": {
+              "type": "string"
+            },
+            "justification": {
+              "type": "string"
+            }
+          },
+          "description": "Information about integrated search or retrieval operations (e.g., reinforcement‑learning guided search) used during reasoning."
+        }
+      }
+    },
+    "solution_and_analysis": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "solution_requests": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "solve_numeric",
+              "solve_analytic",
+              "optimize",
+              "infer"
+            ]
+          }
+        },
+        "optimization_problem": {
+          "$ref": "#/definitions/OptimizationProblem"
+        },
+        "inference_problem": {
+          "$ref": "#/definitions/InferenceProblem"
+        },
+        "sensitivity_analysis": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "local",
+                "sobol",
+                "bootstrap"
+              ]
+            },
+            "parameters": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "perturbation_fraction": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          }
+        },
+        "uncertainty_propagation": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "method": {
+              "type": "string",
+              "enum": [
+                "delta_method",
+                "sampling",
+                "bayesian"
+              ]
+            },
+            "n_samples": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        }
+      }
+    },
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "unit_consistency_check",
+        "mechanism_coverage_check",
+        "constraint_satisfaction_metrics",
+        "fit_quality_metrics",
+        "counterfactual_sanity",
+        "novelty_gate_pass"
+      ],
+      "properties": {
+        "unit_consistency_check": {
+          "type": "boolean"
+        },
+        "mechanism_coverage_check": {
+          "type": "boolean"
+        },
+        "constraint_satisfaction_metrics": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "value",
+              "threshold"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "value": {
+                "type": "number"
+              },
+              "threshold": {
+                "type": "number"
+              }
+            }
+          }
+        },
+        "fit_quality_metrics": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "value",
+              "threshold"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "value": {
+                "type": "number"
+              },
+              "threshold": {
+                "type": "number"
+              }
+            }
+          }
+        },
+        "counterfactual_sanity": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "enabled",
+            "perturb_percent"
+          ],
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "perturb_percent": {
+              "type": "number",
+              "minimum": 0
+            }
+          }
+        },
+        "novelty_gate_pass": {
+          "type": "boolean",
+          "const": true,
+          "description": "MUST be true for the instance to validate. Gate computed from novelty_assurance aggregates and rules."
+        },
+        "novelty_checks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "passed",
+              "value",
+              "threshold",
+              "direction"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "passed": {
+                "type": "boolean"
+              },
+              "value": {
+                "type": "number"
+              },
+              "threshold": {
+                "type": "number"
+              },
+              "direction": {
+                "type": "string",
+                "enum": [
+                  "lower_is_better",
+                  "higher_is_better"
+                ]
+              },
+              "notes": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "generalization_checks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "dataset_used",
+              "metric_name",
+              "value",
+              "threshold",
+              "passed"
+            ],
+            "properties": {
+              "dataset_used": {
+                "type": "string"
+              },
+              "metric_name": {
+                "type": "string"
+              },
+              "value": {
+                "type": "number"
+              },
+              "threshold": {
+                "type": "number"
+              },
+              "passed": {
+                "type": "boolean"
+              },
+              "notes": {
+                "type": "string"
+              }
+            }
+          },
+          "description": "Generalization metrics verifying model performance on unseen data or cross‑domain benchmarks."
+        },
+        "scientific_alignment_checks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "principle_name",
+              "passed"
+            ],
+            "properties": {
+              "principle_name": {
+                "type": "string"
+              },
+              "passed": {
+                "type": "boolean"
+              },
+              "comment": {
+                "type": "string"
+              }
+            }
+          },
+          "description": "Checks to ensure the model aligns with established scientific principles or first‑law constraints."
+        },
+        "expert_review": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "experts",
+            "summary"
+          ],
+          "properties": {
+            "experts": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            },
+            "summary": {
+              "type": "string"
+            },
+            "interpretability_score": {
+              "type": "number"
+            }
+          },
+          "description": "Expert review capturing qualitative assessment and interpretability ratings from domain specialists."
+        }
+      }
+    },
+    "output_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sections_required",
+        "formatting",
+        "safety_note"
+      ],
+      "allOf": [
+        {
+          "properties": {
+            "sections_required": {
+              "type": "array",
+              "contains": {
+                "const": "VariablesAndUnitsTable"
+              }
+            }
+          }
+        },
+        {
+          "properties": {
+            "sections_required": {
+              "type": "array",
+              "contains": {
+                "const": "ModelEquations"
+              }
+            }
+          }
+        },
+        {
+          "properties": {
+            "sections_required": {
+              "type": "array",
+              "contains": {
+                "const": "MethodStatement"
+              }
+            }
+          }
+        },
+        {
+          "properties": {
+            "sections_required": {
+              "type": "array",
+              "contains": {
+                "const": "Results"
+              }
+            }
+          }
+        },
+        {
+          "properties": {
+            "sections_required": {
+              "type": "array",
+              "contains": {
+                "const": "Validation"
+              }
+            }
+          }
+        },
+        {
+          "properties": {
+            "sections_required": {
+              "type": "array",
+              "contains": {
+                "const": "ActionableRecommendation"
+              }
+            }
+          }
+        },
+        {
+          "properties": {
+            "sections_required": {
+              "type": "array",
+              "contains": {
+                "const": "RefinementHooks"
+              }
+            }
+          }
+        },
+        {
+          "properties": {
+            "sections_required": {
+              "type": "array",
+              "contains": {
+                "const": "Novelty Statement"
+              }
+            }
+          }
+        },
+        {
+          "properties": {
+            "sections_required": {
+              "type": "array",
+              "contains": {
+                "const": "Prior Work Comparison"
+              }
+            }
+          }
+        },
+        {
+          "properties": {
+            "sections_required": {
+              "type": "array",
+              "contains": {
+                "const": "Redundancy Check"
+              }
+            }
+          }
+        },
+        {
+          "properties": {
+            "sections_required": {
+              "type": "array",
+              "contains": {
+                "const": "Evidence & Citations"
+              }
+            }
+          }
+        }
+      ],
+      "properties": {
+        "sections_required": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        },
+        "formatting": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "math_notation",
+            "number_format",
+            "significant_figures"
+          ],
+          "properties": {
+            "math_notation": {
+              "type": "string",
+              "enum": [
+                "LaTeX",
+                "ASCII"
+              ]
+            },
+            "number_format": {
+              "type": "string",
+              "enum": [
+                "fixed",
+                "scientific",
+                "auto"
+              ]
+            },
+            "significant_figures": {
+              "type": "integer",
+              "minimum": 2,
+              "maximum": 6
+            },
+            "novelty_badge": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "enabled"
+              ],
+              "properties": {
+                "enabled": {
+                  "type": "boolean"
+                },
+                "style": {
+                  "type": "string"
+                },
+                "text": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "interpretability_requirements": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "narrative_explanation"
+          ],
+          "properties": {
+            "narrative_explanation": {
+              "type": "boolean"
+            },
+            "complexity_limit": {
+              "type": "string"
+            }
+          },
+          "description": "Requirements on how outputs should be explained to ensure they are understandable and interpretable."
+        },
+        "safety_note": {
+          "type": "string"
+        }
+      }
+    },
+    "novelty_assurance": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Mandatory novelty governance section. Instances FAIL validation unless the redundancy gate passes and required evidence is present.",
+      "required": [
+        "prior_work",
+        "citations",
+        "citation_checks",
+        "similarity_assessment",
+        "novelty_claims",
+        "redundancy_check",
+        "evidence_tracking",
+        "error_handling"
+      ],
+      "properties": {
+        "prior_work": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "search_queries",
+            "literature_corpus_summary",
+            "key_papers"
+          ],
+          "properties": {
+            "search_queries": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string"
+              }
+            },
+            "literature_corpus_summary": {
+              "type": "string",
+              "minLength": 30
+            },
+            "key_papers": {
+              "type": "array",
+              "minItems": 3,
+              "items": {
+                "$ref": "#/definitions/CitationID"
+              }
+            }
+          }
+        },
+        "citations": {
+          "type": "array",
+          "minItems": 3,
+          "items": {
+            "$ref": "#/definitions/Citation"
+          }
+        },
+        "citation_checks": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "coverage_ratio",
+            "paraphrase_overlap",
+            "coverage_min_threshold"
+          ],
+          "properties": {
+            "coverage_ratio": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "paraphrase_overlap": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "coverage_min_threshold": {
+              "type": "number",
+              "minimum": 0.5,
+              "maximum": 0.95
+            },
+            "conflicts": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "citation_id",
+                  "issue",
+                  "resolution"
+                ],
+                "properties": {
+                  "citation_id": {
+                    "$ref": "#/definitions/CitationID"
+                  },
+                  "issue": {
+                    "type": "string"
+                  },
+                  "resolution": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "coverage_ratio": {
+                    "type": "number",
+                    "maximum": 0.59
+                  }
+                }
+              },
+              "then": {
+                "properties": {},
+                "description": "Low coverage will typically fail unless an override is used (checked in redundancy_check)."
+              }
+            }
+          ]
+        },
+        "similarity_assessment": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "metrics",
+            "aggregates"
+          ],
+          "properties": {
+            "metrics": {
+              "type": "array",
+              "minItems": 3,
+              "items": {
+                "$ref": "#/definitions/SimilarityMetric"
+              }
+            },
+            "aggregates": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "max_similarity",
+                "min_novelty_score",
+                "passes"
+              ],
+              "properties": {
+                "max_similarity": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "min_novelty_score": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "passes": {
+                  "type": "boolean"
+                }
+              }
+            },
+            "self_overlap_ratio": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "Similarity to prior outputs in the same project/repository."
+            },
+            "cross_domain_performance": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "metric_name",
+                "value",
+                "threshold",
+                "passed"
+              ],
+              "properties": {
+                "metric_name": {
+                  "type": "string"
+                },
+                "value": {
+                  "type": "number"
+                },
+                "threshold": {
+                  "type": "number"
+                },
+                "passed": {
+                  "type": "boolean"
+                },
+                "notes": {
+                  "type": "string"
+                }
+              },
+              "description": "Cross‑domain similarity evaluation metric (e.g., measured on multiple scientific domains)."
+            }
+          }
+        },
+        "novelty_claims": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "statement",
+              "category",
+              "evidence_citations"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^NC[0-9]+$"
+              },
+              "statement": {
+                "type": "string",
+                "minLength": 20
+              },
+              "category": {
+                "type": "string",
+                "enum": [
+                  "model",
+                  "equation",
+                  "method",
+                  "problem",
+                  "analysis",
+                  "dataset",
+                  "system"
+                ]
+              },
+              "evidence_citations": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "$ref": "#/definitions/CitationID"
+                }
+              },
+              "tests": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/NoveltyTest"
+                }
+              },
+              "expected_impact": {
+                "type": "string"
+              },
+              "creativity_scores": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "originality",
+                  "feasibility",
+                  "impact",
+                  "reliability"
+                ],
+                "properties": {
+                  "originality": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "feasibility": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "impact": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "reliability": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  }
+                },
+                "description": "Quantitative creativity assessments capturing originality, feasibility, impact and reliability of the claim."
+              }
+            }
+          }
+        },
+        "redundancy_check": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "rules_applied",
+            "final_decision",
+            "justification",
+            "gate_pass"
+          ],
+          "properties": {
+            "rules_applied": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "final_decision": {
+              "type": "string",
+              "enum": [
+                "proceed",
+                "revise",
+                "reject"
+              ]
+            },
+            "justification": {
+              "type": "string",
+              "minLength": 20
+            },
+            "blocker_reasons": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "gate_pass": {
+              "type": "boolean",
+              "const": true,
+              "description": "MUST be true for schema to validate. Computed from similarity_assessment.aggregates and citation_checks."
+            },
+            "overrides": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "allowed": {
+                  "type": "boolean"
+                },
+                "reason": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "evidence_tracking": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "evidence_map"
+          ],
+          "properties": {
+            "evidence_map": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/EvidenceLink"
+              }
+            },
+            "artifacts": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Artifact"
+              }
+            }
+          }
+        },
+        "error_handling": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "novelty_errors",
+            "missing_evidence_policy",
+            "on_fail_action"
+          ],
+          "properties": {
+            "novelty_errors": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/NoveltyError"
+              }
+            },
+            "missing_evidence_policy": {
+              "type": "string",
+              "enum": [
+                "fail_validation",
+                "allow_with_warning"
+              ]
+            },
+            "on_fail_action": {
+              "type": "string",
+              "enum": [
+                "reject",
+                "request_more_search",
+                "revise",
+                "defer"
+              ]
+            }
+          }
+        },
+        "evaluation_dataset": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "description": {
+              "type": "string"
+            },
+            "data_scope": {
+              "type": "string"
+            },
+            "anonymization_methods": {
+              "type": "string"
+            }
+          },
+          "description": "Dataset or benchmark used for novelty evaluation, such as LLM‑SRBench or domain‑specific corpora."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "similarity_assessment": {
+                "type": "object",
+                "properties": {
+                  "aggregates": {
+                    "type": "object",
+                    "properties": {
+                      "passes": {
+                        "const": false
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "required": [
+              "similarity_assessment"
+            ]
+          },
+          "then": {
+            "properties": {
+              "redundancy_check": {
+                "type": "object",
+                "properties": {
+                  "final_decision": {
+                    "not": {
+                      "const": "proceed"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "definitions": {
+    "Quantity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "symbol",
+        "value",
+        "units",
+        "description"
+      ],
+      "properties": {
+        "symbol": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9_]*$"
+        },
+        "value": {
+          "type": [
+            "number",
+            "array"
+          ],
+          "description": "A number or array of numbers."
+        },
+        "units": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "uncertainty": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "sd",
+                "se",
+                "ci",
+                "bounds"
+              ]
+            },
+            "value": {
+              "type": "number"
+            },
+            "units": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "Variable": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "symbol",
+        "description",
+        "role",
+        "units"
+      ],
+      "properties": {
+        "symbol": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9_]*$"
+        },
+        "description": {
+          "type": "string"
+        },
+        "units": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string",
+          "enum": [
+            "state",
+            "parameter",
+            "input",
+            "output"
+          ]
+        },
+        "bounds": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "lower": {
+              "type": [
+                "number",
+                "string"
+              ]
+            },
+            "upper": {
+              "type": [
+                "number",
+                "string"
+              ]
+            },
+            "units": {
+              "type": "string"
+            }
+          }
+        },
+        "prior": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "distribution": {
+              "type": "string"
+            },
+            "parameters": {
+              "type": "object"
+            }
+          }
+        }
+      }
+    },
+    "Constraint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "expression",
+        "type"
+      ],
+      "properties": {
+        "expression": {
+          "type": "string",
+          "description": "Mathematical inequality/equality, e.g., Cmax <= C_tox."
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "equality",
+            "inequality"
+          ]
+        }
+      }
+    },
+    "Objective": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "expression",
+        "sense"
+      ],
+      "properties": {
+        "expression": {
+          "type": "string",
+          "description": "e.g., minimize ∫ I(t)^2 dt + λ∫ u(t) dt"
+        },
+        "sense": {
+          "type": "string",
+          "enum": [
+            "minimize",
+            "maximize"
+          ]
+        }
+      }
+    },
+    "Equation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "lhs",
+        "rhs"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^(E|M|H)[0-9]+$"
+        },
+        "lhs": {
+          "type": "string",
+          "description": "Left‑hand side, e.g., dS/dt"
+        },
+        "rhs": {
+          "type": "string",
+          "description": "Right‑hand side expression"
+        },
+        "mechanism_link": {
+          "type": "string",
+          "description": "What biological/physical mechanism this term encodes."
+        },
+        "novelty_tag": {
+          "type": "string",
+          "enum": [
+            "new",
+            "variant",
+            "borrowed",
+            "baseline"
+          ]
+        },
+        "prior_art_citations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/CitationID"
+          }
+        },
+        "divergence_note": {
+          "type": "string"
+        }
+      }
+    },
+    "InitialCondition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "variable",
+        "value"
+      ],
+      "properties": {
+        "variable": {
+          "type": "string"
+        },
+        "value": {
+          "type": [
+            "number",
+            "string"
+          ]
+        },
+        "units": {
+          "type": "string"
+        }
+      }
+    },
+    "OptimizationProblem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "objective",
+        "constraints",
+        "solver"
+      ],
+      "properties": {
+        "objective": {
+          "type": "string"
+        },
+        "constraints": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "solver": {
+          "type": "string",
+          "enum": [
+            "scipy",
+            "cvxpy",
+            "gurobi",
+            "cplex"
+          ]
+        }
+      }
+    },
+    "InferenceProblem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "prior",
+        "likelihood",
+        "sampler"
+      ],
+      "properties": {
+        "prior": {
+          "type": "string"
+        },
+        "likelihood": {
+          "type": "string"
+        },
+        "sampler": {
+          "type": "string",
+          "enum": [
+            "mcmc",
+            "vi",
+            "hmc",
+            "nuts"
+          ]
+        }
+      }
+    },
+    "CitationID": {
+      "type": "string",
+      "pattern": "^CIT[0-9]+$"
+    },
+    "Citation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "title",
+        "authors",
+        "year"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/CitationID"
+        },
+        "title": {
+          "type": "string"
+        },
+        "authors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "year": {
+          "type": "integer",
+          "minimum": 1900,
+          "maximum": 2100
+        },
+        "venue": {
+          "type": "string"
+        },
+        "doi": {
+          "type": "string",
+          "pattern": "^10\\.\\d{4,}/[\\w\\.-]+$"
+        },
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https?://.*"
+        }
+      }
+    },
+    "SimilarityMetric": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "score",
+        "direction",
+        "threshold",
+        "passed"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "enum": [
+            "cosine_embedding",
+            "rougeL",
+            "jaccard_terms",
+            "nli_contradiction",
+            "qa_novelty",
+            "citation_overlap",
+            "novascore",
+            "relative_neighbor_density",
+            "creativity_index"
+          ]
+        },
+        "score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "direction": {
+          "type": "string",
+          "enum": [
+            "lower_is_better",
+            "higher_is_better"
+          ]
+        },
+        "threshold": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "passed": {
+          "type": "boolean"
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "NoveltyTest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "result"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "result": {
+          "type": "string"
+        },
+        "evidence_citation_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/CitationID"
+          }
+        }
+      }
+    },
+    "EvidenceLink": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "section",
+        "citation_ids"
+      ],
+      "properties": {
+        "section": {
+          "type": "string"
+        },
+        "claim_id": {
+          "type": "string"
+        },
+        "citation_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/CitationID"
+          },
+          "minItems": 1
+        },
+        "file_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "source_type": {
+          "type": "string",
+          "enum": [
+            "experimental_data",
+            "simulation",
+            "benchmark",
+            "theoretical"
+          ]
+        }
+      }
+    },
+    "Artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "uri"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "graph",
+            "table",
+            "notebook",
+            "code",
+            "dataset",
+            "other"
+          ]
+        },
+        "uri": {
+          "type": "string"
+        },
+        "hash": {
+          "type": "string"
+        }
+      }
+    },
+    "ValidationError": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "instancePath",
+        "schemaPath",
+        "keyword",
+        "params",
+        "message"
+      ],
+      "properties": {
+        "instancePath": {
+          "type": "string"
+        },
+        "schemaPath": {
+          "type": "string"
+        },
+        "keyword": {
+          "type": "string"
+        },
+        "params": {
+          "type": "object"
+        },
+        "message": {
+          "type": "string"
+        }
+      }
+    },
+    "NoveltyError": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "message",
+        "severity",
+        "section",
+        "resolved"
+      ],
+      "properties": {
+        "code": {
+          "type": "string",
+          "enum": [
+            "COVERAGE_LOW",
+            "SIMILARITY_HIGH",
+            "MISSING_CITATION",
+            "EVIDENCE_MISMATCH",
+            "PARAPHRASE_HIGH",
+            "SELF_DUPLICATION"
+          ]
+        },
+        "message": {
+          "type": "string"
+        },
+        "severity": {
+          "type": "string",
+          "enum": [
+            "info",
+            "warning",
+            "error"
+          ]
+        },
+        "section": {
+          "type": "string"
+        },
+        "resolved": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}
