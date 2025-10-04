@@ -28,7 +28,7 @@ export interface CommunicationStats {
 export interface ConnectionStatus {
   isConnected: boolean
   lastHeartbeat: Date
-  connectionQuality: 'excellent' | 'good' | 'poor' | 'disconnected'
+  connectionQuality: 'excellent' | 'good' | 'poor' | 'standby'
   latency: number
 }
 
@@ -157,12 +157,12 @@ export const useCommunication = () => {
       const now = Date.now()
       const timeSinceLastHeartbeat = now - connectionStatus.lastHeartbeat.getTime()
       
-      let connectionQuality: 'excellent' | 'good' | 'poor' | 'disconnected' = 'excellent'
+      let connectionQuality: 'excellent' | 'good' | 'poor' | 'standby' = 'excellent'
       let isConnected = true
       
       if (timeSinceLastHeartbeat > 10000) {
         isConnected = false
-        connectionQuality = 'disconnected'
+        connectionQuality = 'standby'
       } else if (timeSinceLastHeartbeat > 5000) {
         connectionQuality = 'poor'
       } else if (timeSinceLastHeartbeat > 2000) {
@@ -207,7 +207,7 @@ export const useCommunication = () => {
         ...prev,
         isConnected: connected,
         lastHeartbeat: new Date(),
-        connectionQuality: connected ? 'excellent' : 'disconnected'
+        connectionQuality: connected ? 'excellent' : 'standby'
       }))
     }
 
