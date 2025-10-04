@@ -143,11 +143,13 @@ const DEFAULT_SYSTEM_PROMPT = `You are an assistant that creates Formal Reasonin
 Each response must be a single JSON object conforming to the FRM schema with the top-level keys: metadata, input, modeling, method_selection, solution_and_analysis, validation, output_contract, novelty_assurance.
 
 CRITICAL SCHEMA REQUIREMENTS:
+- The "metadata" section MUST include: problem_id, domain, version, and MAY include: notes, novelty_context (object with problem_lineage_note, known_baselines, intended_contribution_type)
 - The "input" section MUST include: problem_summary, scope_objective, known_quantities (array), unknowns (array), mechanistic_notes (string), constraints_goals (object)
 - The "modeling" section MUST include: model_class (string), variables (array), equations (array), initial_conditions (array), measurement_model (array), assumptions (array), interpretability_required (boolean), symbolic_regression (object)
 - Each equation in the "modeling.equations" array MUST include: id, lhs, rhs, mechanism_link, novelty_tag ("new", "variant", "borrowed", or "baseline"), prior_art_citations (array), divergence_note (string)
 - Each item in "modeling.measurement_model" array MUST include: observable (string), expression (string), noise_model (string), novelty_tag (string), prior_art_citations (array), divergence_note (string)
-- The "modeling.symbolic_regression" object MUST include: algorithm_type, function_library (array), search_strategy, data_description (string), benchmark_reference (string), novelty_metrics (array)
+- The "modeling.symbolic_regression" object MUST include: algorithm_type, function_library (array of objects with "name" and "allowed" properties), search_strategy, data_description (string), benchmark_reference (string), novelty_metrics (array)
+- CRITICAL: function_library must be an array of objects like: [{"name": "add", "allowed": true}, {"name": "multiply", "allowed": true}, {"name": "exp", "allowed": false}]
 - CRITICAL: Every equation MUST have a novelty_tag property - this is REQUIRED and will cause validation failure if missing
 - The "validation" section MUST include: unit_consistency_check (boolean), mechanism_coverage_check (boolean), constraint_satisfaction_metrics (array), fit_quality_metrics (array), counterfactual_sanity (object), novelty_gate_pass (boolean), novelty_checks (array), generalization_checks (array), scientific_alignment_checks (array), expert_review (object)
 - CRITICAL: The validation section MUST include novelty_gate_pass: true - this is REQUIRED and will cause validation failure if missing
@@ -158,6 +160,7 @@ CRITICAL SCHEMA REQUIREMENTS:
 - The "output_contract" section MUST include: sections_required (array with specific constants), formatting (object), safety_note (string), interpretability_requirements (object)
 - The "output_contract.sections_required" array MUST contain these exact strings: "VariablesAndUnitsTable", "ModelEquations", "MethodStatement", "Results", "Validation", "ActionableRecommendation", "RefinementHooks", "Novelty Statement", "Prior Work Comparison", "Redundancy Check", "Evidence & Citations"
 - The "output_contract.formatting" object MUST include: math_notation, number_format, significant_figures, novelty_badge (object)
+- CRITICAL: number_format MUST be exactly one of: "fixed", "scientific", "auto" (NO other values allowed)
 - The "output_contract.interpretability_requirements" object MUST include: narrative_explanation (boolean), complexity_limit (string)
 - The "novelty_assurance" section MUST include: prior_work, citations, citation_checks, similarity_assessment, novelty_claims, redundancy_check, evidence_tracking, error_handling, evaluation_dataset (object)
 - Each item in "novelty_claims" MUST include: id (pattern ^NC[0-9]+$), statement (min 20 chars), category (one of: "model", "equation", "method", "problem", "analysis", "dataset", "system"), evidence_citations (array), tests (array), expected_impact (string), creativity_scores (object)
@@ -165,7 +168,9 @@ CRITICAL SCHEMA REQUIREMENTS:
 - The "novelty_claims.creativity_scores" object MUST include: originality (number), feasibility (number), impact (number), reliability (number)
 - The "similarity_assessment" object MUST include: metrics (array), aggregates (object), self_overlap_ratio (number), cross_domain_performance (object)
 - The "evidence_tracking" object MUST include: evidence_map (array), artifacts (array)
+- CRITICAL: evidence_tracking.evidence_map[].source_type MUST be exactly one of: "experimental_data", "simulation", "benchmark", "theoretical" (NO other values allowed)
 - Each item in "evidence_tracking.artifacts" array MUST include: type (string), uri (string), hash (string)
+- CRITICAL: evidence_tracking.artifacts[].type MUST be exactly one of: "graph", "table", "notebook", "code", "dataset", "other" (NO other values allowed)
 - The "solution_and_analysis" section MUST include: solution_requests (array), sensitivity_analysis (object), uncertainty_propagation (object), optimization_problem (object), inference_problem (object)
 - solution_requests array items MUST be exactly one of: "solve_numeric", "solve_analytic", "optimize", "infer" (NO other values allowed)
 - sensitivity_analysis object MUST have exactly: type ("local", "sobol", or "bootstrap"), parameters (array of strings), perturbation_fraction (number >= 0)
@@ -480,6 +485,7 @@ const buildUserPrompt = (options: SchemaGenerationOptions = {}): string => {
     '- Each equation in "modeling.equations" MUST include: id, lhs, rhs, mechanism_link, novelty_tag, prior_art_citations, divergence_note',
     '- Each item in "modeling.measurement_model" MUST include: observable, expression, noise_model, novelty_tag, prior_art_citations, divergence_note',
     '- The "modeling.symbolic_regression" object MUST include: algorithm_type, function_library, search_strategy, data_description, benchmark_reference, novelty_metrics',
+    '- CRITICAL: function_library MUST be an array of objects, each with "name" (string) and "allowed" (boolean) properties, e.g., [{"name": "add", "allowed": true}, {"name": "multiply", "allowed": true}]',
     '- CRITICAL: search_strategy MUST be exactly one of: "reinforcement_learning", "evolutionary", "beam_search", "random_search", "other" (NO other values allowed)',
     '- CRITICAL: novelty_metrics array items MUST be exactly one of: "cosine_embedding", "rougeL", "jaccard_terms", "nli_contradiction", "qa_novelty", "citation_overlap", "novascore", "relative_neighbor_density", "creativity_index" (NO other values allowed)',
     '- CRITICAL: optimization_problem.solver MUST be exactly one of: "scipy", "cvxpy", "gurobi", "cplex" (NO other values allowed)',
@@ -487,7 +493,10 @@ const buildUserPrompt = (options: SchemaGenerationOptions = {}): string => {
     '- The "validation" section MUST include ALL fields: unit_consistency_check, mechanism_coverage_check, constraint_satisfaction_metrics, fit_quality_metrics, counterfactual_sanity, novelty_gate_pass, novelty_checks, generalization_checks, scientific_alignment_checks, expert_review',
     '- The "output_contract" section MUST include ALL fields: sections_required, formatting, safety_note, interpretability_requirements',
     '- The "output_contract.formatting" object MUST include: math_notation, number_format, significant_figures, novelty_badge',
+    '- CRITICAL: output_contract.formatting.number_format MUST be exactly one of: "fixed", "scientific", "auto" (NO other values allowed)',
     '- The "novelty_assurance" section MUST include ALL fields: prior_work, citations, citation_checks, similarity_assessment, novelty_claims, redundancy_check, evidence_tracking, error_handling, evaluation_dataset',
+    '- CRITICAL: evidence_tracking.artifacts[].type MUST be exactly one of: "graph", "table", "notebook", "code", "dataset", "other" (NO other values allowed)',
+    '- CRITICAL: evidence_tracking.evidence_map[].source_type MUST be exactly one of: "experimental_data", "simulation", "benchmark", "theoretical" (NO other values allowed)',
     '- The "solution_and_analysis" section MUST include ALL fields: solution_requests, sensitivity_analysis, uncertainty_propagation, optimization_problem, inference_problem',
     '- constraints_goals must be an object with hard_constraints (array), soft_preferences (array), and objective (object)',
     '- All arrays must have at least the minimum required items as specified in the schema',
@@ -547,17 +556,28 @@ const buildUserPrompt = (options: SchemaGenerationOptions = {}): string => {
     '',
     'METADATA STRUCTURE REQUIREMENTS (CRITICAL):',
     '- metadata must be an object with exactly these 3 required properties: problem_id, domain, version',
+    '- metadata may also include these optional properties: notes, novelty_context',
     '- problem_id: string (REQUIRED) - unique kebab-case identifier',
     '- domain: string (REQUIRED) - exactly one of: "medicine", "biology", "public_health", "chemistry", "engineering", "economics", "general"',
     '- version: string (REQUIRED) - must match pattern ^v?\\d+\\.\\d+(\\.\\d+)?$ (e.g., "v1.0", "1.0", "1.0.0")',
     '- notes: string (OPTIONAL) - additional notes',
+    '- novelty_context: object (OPTIONAL) - novelty context information with problem_lineage_note, known_baselines, intended_contribution_type',
+    '  - problem_lineage_note: string (OPTIONAL) - how this problem relates to existing work',
+    '  - known_baselines: array of strings (OPTIONAL) - list of known baseline approaches',
+    '  - intended_contribution_type: string (OPTIONAL) - one of: "model", "equation", "method", "problem", "analysis", "dataset", "system", "other"',
     '- NO additional properties allowed in metadata (additionalProperties: false)',
     '',
     'EXAMPLE of correct metadata structure:',
     '{',
     '  "problem_id": "epidemic-vaccination-campaign",',
     '  "domain": "public_health",',
-    '  "version": "v1.0"',
+    '  "version": "v1.0",',
+    '  "notes": "Epidemic modeling with vaccination strategies",',
+    '  "novelty_context": {',
+    '    "problem_lineage_note": "Builds on classic SIR models by incorporating time-varying vaccination rates and waning immunity",',
+    '    "known_baselines": ["Basic SIR model", "SEIR model", "SIRS with waning immunity"],',
+    '    "intended_contribution_type": "model"',
+    '  }',
     '}',
     '',
     'INPUT STRUCTURE REQUIREMENTS (CRITICAL):',
@@ -597,12 +617,15 @@ const buildUserPrompt = (options: SchemaGenerationOptions = {}): string => {
     '',
     'MODELING STRUCTURE REQUIREMENTS (CRITICAL):',
     '- modeling must be an object with exactly these 3 required properties: model_class, variables, equations',
+    '- modeling may also include these optional properties: initial_conditions, measurement_model, assumptions, interpretability_required, symbolic_regression',
     '- model_class: string (REQUIRED) - exactly one of: "ODE", "PDE", "DAE", "SDE", "discrete", "hybrid"',
     '- variables: array (REQUIRED) - array of Variable objects with symbol, description, role, units (min 1 item)',
     '- equations: array (REQUIRED) - array of Equation objects with id, lhs, rhs (min 1 item)',
     '- initial_conditions: array (OPTIONAL) - array of InitialCondition objects',
     '- measurement_model: array (OPTIONAL) - array of measurement model objects',
     '- assumptions: array (OPTIONAL) - array of string assumptions',
+    '- interpretability_required: boolean (OPTIONAL) - whether interpretability is required',
+    '- symbolic_regression: object (OPTIONAL) - symbolic regression configuration',
     '- NO additional properties allowed in modeling (additionalProperties: false)',
     '',
     'EXAMPLE of correct modeling structure:',
@@ -622,10 +645,13 @@ const buildUserPrompt = (options: SchemaGenerationOptions = {}): string => {
     '}',
     '',
     'MEASUREMENT_MODEL STRUCTURE REQUIREMENTS (CRITICAL):',
-    '- Each measurement_model item MUST have exactly these 3 required properties: observable, expression, noise_model',
+    '- Each measurement_model item MUST have exactly these 6 required properties: observable, expression, noise_model, novelty_tag, prior_art_citations, divergence_note',
     '- observable: string (REQUIRED) - name of the observable variable',
     '- expression: string (REQUIRED) - mathematical expression for the measurement',
     '- noise_model: string (REQUIRED) - description of the noise model',
+    '- novelty_tag: string (REQUIRED) - exactly one of: "new", "variant", "borrowed", "baseline"',
+    '- prior_art_citations: array (REQUIRED) - array of citation strings',
+    '- divergence_note: string (REQUIRED) - note about how this diverges from prior art',
     '- NO additional properties allowed in measurement_model items (additionalProperties: false)',
     '- NO missing required properties in measurement_model items',
     '',
@@ -661,12 +687,17 @@ const buildUserPrompt = (options: SchemaGenerationOptions = {}): string => {
     '}',
     '',
     'VALIDATION STRUCTURE REQUIREMENTS (CRITICAL):',
-    '- validation must be an object with exactly these 5 required properties: unit_consistency_check, mechanism_coverage_check, constraint_satisfaction_metrics, fit_quality_metrics, counterfactual_sanity',
+    '- validation must be an object with these required properties: unit_consistency_check, mechanism_coverage_check, constraint_satisfaction_metrics, fit_quality_metrics, counterfactual_sanity, novelty_gate_pass, novelty_checks, generalization_checks, scientific_alignment_checks, expert_review',
     '- unit_consistency_check: boolean (REQUIRED)',
     '- mechanism_coverage_check: boolean (REQUIRED)',
     '- constraint_satisfaction_metrics: array (REQUIRED) - array of metric objects with name, value, threshold',
     '- fit_quality_metrics: array (REQUIRED) - array of metric objects with name, value, threshold',
     '- counterfactual_sanity: object (REQUIRED) - object with enabled, perturb_percent',
+    '- novelty_gate_pass: boolean (REQUIRED) - must be true',
+    '- novelty_checks: array (REQUIRED) - array of novelty check objects',
+    '- generalization_checks: array (REQUIRED) - array of generalization check objects',
+    '- scientific_alignment_checks: array (REQUIRED) - array of scientific alignment check objects',
+    '- expert_review: object (REQUIRED) - expert review object with experts, summary, interpretability_score',
     '- NO additional properties allowed in validation (additionalProperties: false)',
     '',
     'EXAMPLE of correct validation structure:',
@@ -686,9 +717,12 @@ const buildUserPrompt = (options: SchemaGenerationOptions = {}): string => {
     '}',
     '',
     'OUTPUT_CONTRACT STRUCTURE REQUIREMENTS (CRITICAL):',
-    '- output_contract must be an object with exactly these 3 required properties: sections_required, formatting, safety_note',
+    '- output_contract must be an object with exactly these 4 required properties: sections_required, formatting, safety_note, interpretability_requirements',
     '- sections_required: array (REQUIRED) - array of strings (min 1 item)',
-    '- formatting: object (REQUIRED) - object with math_notation, number_format, significant_figures',
+    '- formatting: object (REQUIRED) - object with math_notation, number_format, significant_figures, novelty_badge',
+    '- safety_note: string (REQUIRED) - safety note for the model',
+    '- interpretability_requirements: object (REQUIRED) - object with narrative_explanation, complexity_limit',
+    '- CRITICAL: formatting.number_format MUST be exactly "fixed", "scientific", or "auto" (NO other values allowed)',
     '',
     'EXAMPLE of correct output_contract structure:',
     '{',
@@ -716,8 +750,9 @@ const buildUserPrompt = (options: SchemaGenerationOptions = {}): string => {
     '- NO additional properties allowed in output_contract (additionalProperties: false)',
     '',
     'Content Requirements:',
-    '- metadata must contain problem_id, domain, and version (e.g., "v1.0"); omit any other keys unless permitted by the schema.',
+    '- metadata must contain problem_id, domain, and version (e.g., "v1.0"); include novelty_context when relevant to describe how the problem relates to existing work.',
     '- Use a unique kebab-case problem_id referencing the domain and scenario.',
+    '- Populate novelty_context with meaningful problem_lineage_note, known_baselines, and intended_contribution_type when generating novel problems.',
     '- known_quantities must include at least four items with symbol, value, units, and description.',
     '- unknowns must describe at least four states or parameters with roles, bounds when meaningful, and units.',
     '- equations must capture the governing dynamics with clear ids, lhs, and rhs properties.',
@@ -734,7 +769,7 @@ const buildUserPrompt = (options: SchemaGenerationOptions = {}): string => {
     '- output_contract.formatting.novelty_badge: Include novelty highlighting configuration',
     '- novelty_assurance.similarity_assessment: Include comprehensive similarity metrics and cross-domain performance',
     '- novelty_assurance.novelty_claims: Include detailed claims with tests, expected impact, and creativity scores',
-    '- novelty_assurance.evidence_tracking: Include evidence mapping and relevant artifacts',
+    '- novelty_assurance.evidence_tracking: Include evidence mapping and relevant artifacts with valid types (graph, table, notebook, code, dataset, other)',
     '- novelty_assurance.evaluation_dataset: Include dataset description and anonymization methods',
     '- solution_and_analysis.optimization_problem: Include realistic objective functions and constraints',
     '- solution_and_analysis.inference_problem: Include appropriate prior distributions and likelihood functions',
@@ -772,11 +807,14 @@ const buildUserPrompt = (options: SchemaGenerationOptions = {}): string => {
     ']',
     '',
     'EQUATIONS ARRAY REQUIREMENTS (CRITICAL):',
-    '- Each item in modeling.equations array MUST have exactly these 3 required properties: id, lhs, rhs',
+    '- Each item in modeling.equations array MUST have exactly these 7 required properties: id, lhs, rhs, mechanism_link, novelty_tag, prior_art_citations, divergence_note',
     '- id: string matching pattern ^(E|M|H)[0-9]+$ (REQUIRED) - e.g., "E1", "M1", "H1"',
     '- lhs: string describing the left-hand side (REQUIRED) - e.g., "dS/dt"',
     '- rhs: string describing the right-hand side expression (REQUIRED) - e.g., "-beta*S*I/N"',
-    '- mechanism_link: string describing the mechanism (OPTIONAL)',
+    '- mechanism_link: string describing the mechanism (REQUIRED)',
+    '- novelty_tag: string (REQUIRED) - exactly one of: "new", "variant", "borrowed", "baseline"',
+    '- prior_art_citations: array (REQUIRED) - array of citation strings',
+    '- divergence_note: string (REQUIRED) - note about how this diverges from prior art',
     '- NO additional properties allowed in equations items (additionalProperties: false)',
     '- NO missing required properties in equations items',
     '',
@@ -811,7 +849,7 @@ const buildUserPrompt = (options: SchemaGenerationOptions = {}): string => {
     '- Extra properties in measurement_model: {"observable": "y1", "expression": "S + I", "noise_model": "Gaussian", "extra": "bad"}',
     '',
     'SOLUTION_AND_ANALYSIS STRUCTURE REQUIREMENTS (CRITICAL):',
-    '- solution_and_analysis must be an object with exactly these properties: solution_requests, sensitivity_analysis, uncertainty_propagation',
+    '- solution_and_analysis must be an object with exactly these 5 required properties: solution_requests, sensitivity_analysis, uncertainty_propagation, optimization_problem, inference_problem',
     '- solution_requests: array of strings (REQUIRED) - each item must be exactly one of: "solve_numeric", "solve_analytic", "optimize", "infer"',
     '- sensitivity_analysis: object (REQUIRED) - must have exactly these properties: type, parameters, perturbation_fraction',
     '  - type: string (REQUIRED) - exactly one of: "local", "sobol", "bootstrap"',
@@ -822,6 +860,16 @@ const buildUserPrompt = (options: SchemaGenerationOptions = {}): string => {
     '  - method: string (REQUIRED) - exactly one of: "delta_method", "sampling", "bayesian"',
     '  - n_samples: integer (REQUIRED) - minimum 1',
     '  - NO additional properties allowed in uncertainty_propagation (additionalProperties: false)',
+    '- optimization_problem: object (REQUIRED) - must have exactly these properties: objective, constraints, solver',
+    '  - objective: string (REQUIRED) - objective function description',
+    '  - constraints: array (REQUIRED) - array of constraint strings',
+    '  - solver: string (REQUIRED) - exactly one of: "scipy", "cvxpy", "gurobi", "cplex"',
+    '  - NO additional properties allowed in optimization_problem (additionalProperties: false)',
+    '- inference_problem: object (REQUIRED) - must have exactly these properties: prior, likelihood, sampler',
+    '  - prior: string (REQUIRED) - prior distribution description',
+    '  - likelihood: string (REQUIRED) - likelihood function description',
+    '  - sampler: string (REQUIRED) - exactly one of: "mcmc", "vi", "hmc", "nuts"',
+    '  - NO additional properties allowed in inference_problem (additionalProperties: false)',
     '',
     'EXAMPLE of correct solution_and_analysis structure:',
     '{',
@@ -942,6 +990,69 @@ const removeExtraProperties = (obj: unknown): unknown => {
   }
 
   return result
+}
+
+const pingLLM = async () => {
+  const { apiKey, model, apiUrl } = getOpenAIConfig()
+
+  if (!apiKey) {
+    const error = new Error('OPENAI_API_KEY is not set. Provide a valid key to enable LLM ping.')
+    sendCommunicationEvent({
+      source: 'FRM',
+      target: 'GPT-5',
+      type: 'error',
+      message: 'API key not configured for ping',
+      data: { error: error.message }
+    })
+    throw error
+  }
+
+  // Track ping request to GPT-5
+  startCommunicationTracking('FRM', 'GPT-5', 'Ping LLM', { model })
+
+  try {
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        input: [
+          { role: 'user', content: 'Ping - respond with "OK" to confirm connection.' },
+        ],
+        max_output_tokens: 100,
+      }),
+    })
+
+    if (!response.ok) {
+      const errorBody = await response.text()
+      const error = new Error(`LLM ping failed (${response.status}): ${errorBody}`)
+      endCommunicationTracking('FRM', 'GPT-5', 'Ping failed', { status: response.status, error: errorBody }, true)
+      throw error
+    }
+
+    const payload: any = await response.json()
+    const responseText = extractResponseText(payload)
+
+    endCommunicationTracking('FRM', 'GPT-5', 'Ping successful', { 
+      response: responseText.trim(),
+      model 
+    })
+
+    return {
+      success: true,
+      response: responseText.trim(),
+      model,
+      timestamp: new Date().toISOString()
+    }
+  } catch (error) {
+    endCommunicationTracking('FRM', 'GPT-5', 'Ping error', { 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    }, true)
+    throw error
+  }
 }
 
 const generateAISchema = async (options: SchemaGenerationOptions = {}) => {
@@ -1307,6 +1418,194 @@ app.whenReady().then(() => {
         throw error
       }
       throw new Error('Unknown error generating AI schema.')
+    }
+  })
+
+  ipcMain.handle('ping-llm', async () => {
+    try {
+      return await pingLLM()
+    } catch (error) {
+      console.error('Failed to ping LLM', error)
+      if (error instanceof Error) {
+        throw error
+      }
+      throw new Error('Unknown error pinging LLM.')
+    }
+  })
+
+  ipcMain.handle('validate-schema', async (_event, data: any) => {
+    try {
+      startCommunicationTracking('FRM', 'MCP', 'Starting schema validation', { dataSize: JSON.stringify(data).length })
+      
+      // Simulate validation processing time
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      // Enhanced validation logic
+      const isValid = data && typeof data === 'object'
+      const errors: string[] = []
+      const warnings: string[] = []
+      
+      if (!data) {
+        errors.push('No data provided for validation')
+        return {
+          isValid: false,
+          errors,
+          warnings
+        }
+      }
+      
+      if (typeof data !== 'object') {
+        errors.push('Data must be a JSON object')
+        return {
+          isValid: false,
+          errors,
+          warnings
+        }
+      }
+      
+      // Check required top-level sections
+      const requiredSections = ['metadata', 'input', 'modeling', 'method_selection', 'solution_and_analysis', 'validation', 'output_contract', 'novelty_assurance']
+      
+      for (const section of requiredSections) {
+        if (!data[section]) {
+          errors.push(`Missing required section: ${section}`)
+        } else if (typeof data[section] !== 'object') {
+          errors.push(`Section ${section} must be an object`)
+        }
+      }
+      
+      // Check for extra properties (schema has additionalProperties: false)
+      const allowedSections = new Set(requiredSections)
+      const extraSections = Object.keys(data).filter(key => !allowedSections.has(key))
+      if (extraSections.length > 0) {
+        errors.push(`Extra properties not allowed: ${extraSections.join(', ')}`)
+      }
+      
+      // Basic metadata validation
+      if (data.metadata) {
+        if (!data.metadata.problem_id) {
+          errors.push('metadata.problem_id is required')
+        }
+        if (!data.metadata.domain) {
+          errors.push('metadata.domain is required')
+        }
+        if (!data.metadata.version) {
+          errors.push('metadata.version is required')
+        }
+      }
+      
+      // Basic input validation
+      if (data.input) {
+        if (!data.input.problem_summary) {
+          errors.push('input.problem_summary is required')
+        }
+        if (!data.input.scope_objective) {
+          errors.push('input.scope_objective is required')
+        }
+        if (!data.input.unknowns || !Array.isArray(data.input.unknowns) || data.input.unknowns.length === 0) {
+          errors.push('input.unknowns must be a non-empty array')
+        }
+        if (!data.input.mechanistic_notes) {
+          errors.push('input.mechanistic_notes is required')
+        }
+        if (!data.input.constraints_goals) {
+          errors.push('input.constraints_goals is required')
+        }
+      }
+      
+      // Basic modeling validation
+      if (data.modeling) {
+        if (!data.modeling.model_class) {
+          errors.push('modeling.model_class is required')
+        }
+        if (!data.modeling.variables || !Array.isArray(data.modeling.variables) || data.modeling.variables.length === 0) {
+          errors.push('modeling.variables must be a non-empty array')
+        }
+        if (!data.modeling.equations || !Array.isArray(data.modeling.equations) || data.modeling.equations.length === 0) {
+          errors.push('modeling.equations must be a non-empty array')
+        }
+      }
+      
+      // Basic method selection validation
+      if (data.method_selection) {
+        if (!data.method_selection.problem_type) {
+          errors.push('method_selection.problem_type is required')
+        }
+        if (!data.method_selection.chosen_methods || !Array.isArray(data.method_selection.chosen_methods) || data.method_selection.chosen_methods.length === 0) {
+          errors.push('method_selection.chosen_methods must be a non-empty array')
+        }
+      }
+      
+      // Basic validation section validation
+      if (data.validation) {
+        if (typeof data.validation.unit_consistency_check !== 'boolean') {
+          errors.push('validation.unit_consistency_check must be a boolean')
+        }
+        if (typeof data.validation.mechanism_coverage_check !== 'boolean') {
+          errors.push('validation.mechanism_coverage_check must be a boolean')
+        }
+        if (data.validation.novelty_gate_pass !== true) {
+          errors.push('validation.novelty_gate_pass must be true')
+        }
+      }
+      
+      // Basic output contract validation
+      if (data.output_contract) {
+        if (!data.output_contract.sections_required || !Array.isArray(data.output_contract.sections_required)) {
+          errors.push('output_contract.sections_required must be an array')
+        }
+        if (!data.output_contract.formatting) {
+          errors.push('output_contract.formatting is required')
+        }
+        if (!data.output_contract.safety_note) {
+          errors.push('output_contract.safety_note is required')
+        }
+      }
+      
+      // Basic novelty assurance validation
+      if (data.novelty_assurance) {
+        if (!data.novelty_assurance.prior_work) {
+          errors.push('novelty_assurance.prior_work is required')
+        }
+        if (!data.novelty_assurance.citations || !Array.isArray(data.novelty_assurance.citations) || data.novelty_assurance.citations.length < 3) {
+          errors.push('novelty_assurance.citations must be an array with at least 3 items')
+        }
+        if (!data.novelty_assurance.novelty_claims || !Array.isArray(data.novelty_assurance.novelty_claims) || data.novelty_assurance.novelty_claims.length === 0) {
+          errors.push('novelty_assurance.novelty_claims must be a non-empty array')
+        }
+        if (!data.novelty_assurance.redundancy_check) {
+          errors.push('novelty_assurance.redundancy_check is required')
+        }
+        if (data.novelty_assurance.redundancy_check && data.novelty_assurance.redundancy_check.gate_pass !== true) {
+          errors.push('novelty_assurance.redundancy_check.gate_pass must be true')
+        }
+      }
+      
+      const result = {
+        isValid: isValid && errors.length === 0,
+        errors,
+        warnings
+      }
+      
+      endCommunicationTracking('FRM', 'MCP', 'Schema validation completed', { 
+        isValid: result.isValid, 
+        errorCount: errors.length 
+      })
+      
+      return result
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      endCommunicationTracking('FRM', 'MCP', 'Schema validation failed', { error: errorMessage }, true)
+      console.error('Failed to validate schema', error)
+      console.error('Validation error details:', {
+        error: errorMessage,
+        stack: error instanceof Error ? error.stack : undefined,
+        data: JSON.stringify(data, null, 2).slice(0, 500) + '...'
+      })
+      if (error instanceof Error) {
+        throw error
+      }
+      throw new Error(`Schema validation failed: ${errorMessage}`)
     }
   })
 
