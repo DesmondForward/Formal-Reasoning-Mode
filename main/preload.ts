@@ -6,6 +6,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   showMessageBox: (options: any) => ipcRenderer.invoke('show-message-box', options),
   generateAISchema: (options?: Record<string, unknown>) =>
     ipcRenderer.invoke('generate-ai-example', options ?? {}),
+  pingLLM: () => ipcRenderer.invoke('ping-llm'),
+  validateSchema: (data: any) =>
+    ipcRenderer.invoke('validate-schema', data),
 
   // Menu event listeners
   onMenuNewProblem: (callback: () => void) => {
