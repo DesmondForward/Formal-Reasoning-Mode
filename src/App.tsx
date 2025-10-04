@@ -12,7 +12,6 @@ import {
   AlertCircle, 
   Settings, 
   FileText,
-  Play,
   Download,
   Upload,
   RefreshCw
@@ -59,11 +58,15 @@ const App: React.FC = () => {
 
     useEffect(() => {
       console.log('useEffect: validateData called with data:', data)
-      try {
-        validateData(data)
-      } catch (error) {
-        console.error('Error in validateData:', error)
+      const runValidation = async () => {
+        try {
+          await validateData(data)
+        } catch (error) {
+          console.error('Error in validateData:', error)
+        }
       }
+      
+      runValidation()
       
       // Simulate loading time to show loading screen
       const timer = setTimeout(() => {
@@ -97,7 +100,7 @@ const App: React.FC = () => {
         if (subDomain) options.scenarioHint = subDomain
         
         const { data: candidate, source, errorMessage } = await generateSchemaProblem(options)
-        const generationValidation = validateUnknown(candidate)
+        const generationValidation = await validateUnknown(candidate)
 
         if (generationValidation.isValid && generationValidation.data) {
           setData(generationValidation.data)
@@ -116,10 +119,19 @@ const App: React.FC = () => {
             }
           }
         } else {
-          const summary =
-            generationValidation.errors
-              ?.map((err) => `${err.instancePath || '/'}: ${err.message}`)
-              .join('\n') || 'Unknown validation failure.'
+          console.error('Validation failed:', generationValidation)
+          
+          let summary = 'Unknown validation failure.'
+          if (generationValidation.errors && generationValidation.errors.length > 0) {
+            summary = generationValidation.errors
+              .map((err) => `${err.instancePath || '/'}: ${err.message}`)
+              .join('\n')
+          } else if (generationValidation.warnings && generationValidation.warnings.length > 0) {
+            summary = 'Validation warnings:\n' + generationValidation.warnings.join('\n')
+          } else {
+            summary = 'Schema validation failed but no specific errors were captured. Check console for details.'
+          }
+          
           const prefix =
             source === 'ai'
               ? 'The AI-generated schema did not pass schema validation.'
@@ -205,7 +217,7 @@ const App: React.FC = () => {
           }
 
           const parsed = JSON.parse(raw)
-          const result = validateUnknown(parsed)
+          const result = await validateUnknown(parsed)
 
           if (result.isValid && 'data' in result && result.data) {
             setData(result.data)
