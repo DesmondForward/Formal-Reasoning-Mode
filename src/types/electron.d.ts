@@ -13,6 +13,8 @@ export interface ElectronAPI {
   getAppVersion: () => Promise<string>
   showMessageBox: (options: any) => Promise<any>
   generateAISchema: (options?: Record<string, unknown>) => Promise<unknown>
+  pingLLM: () => Promise<{ success: boolean; response: string; model: string; timestamp: string }>
+  validateSchema: (data: any) => Promise<{ isValid: boolean; errors: string[]; warnings: string[] }>
   onMenuNewProblem: (callback: () => void) => void
   onMenuOpen: (callback: () => void) => void
   onMenuSave: (callback: () => void) => void
