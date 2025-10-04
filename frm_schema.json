@@ -214,7 +214,9 @@
               "novelty_tag": {
                 "enum": [
                   "new",
-                  "variant"
+                  "variant",
+                  "borrowed",
+                  "baseline"
                 ]
               }
             },
@@ -1525,7 +1527,9 @@
       "required": [
         "id",
         "lhs",
-        "rhs"
+        "rhs",
+        "mechanism_link",
+        "novelty_tag"
       ],
       "properties": {
         "id": {
@@ -1670,7 +1674,7 @@
         },
         "year": {
           "type": "integer",
-          "minimum": 1900,
+          "minimum": 1800,
           "maximum": 2100
         },
         "venue": {
