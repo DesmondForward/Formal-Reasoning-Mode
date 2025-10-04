@@ -67,6 +67,6 @@ export default defineConfig({
     port: 3000,
     host: 'localhost',
     cors: true,
-    strictPort: true, // Fail if port is already in use
+    strictPort: false, // Try different ports if 3000 is in use
   },
 })
