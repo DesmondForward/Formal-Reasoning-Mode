@@ -609,12 +609,12 @@ export interface FRMData {
       symbol: string
       description: string
       role: VariableRoleOption
+      units: string
       bounds?: {
         lower: number | string
         upper: number | string
         units?: string
       }
-      units: string
     }>
     mechanistic_notes: string
     constraints_goals: {
