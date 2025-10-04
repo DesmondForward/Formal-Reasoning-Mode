@@ -268,10 +268,10 @@ const CommunicationLogPanel: React.FC = () => {
               {isConnected ? (
                 <Wifi className="h-3 w-3 text-green-600" aria-label="Connected" />
               ) : (
-                <WifiOff className="h-3 w-3 text-red-600" aria-label="Disconnected" />
+                <WifiOff className="h-3 w-3 text-red-600" aria-label="Standby" />
               )}
               <span className="text-xs text-slate-600 dark:text-slate-400">
-                {isConnected ? 'Connected' : 'Disconnected'}
+                {isConnected ? 'Connected' : 'Standby'}
               </span>
               {isConnected && (
                 <Badge 
@@ -425,33 +425,55 @@ const CommunicationLogPanel: React.FC = () => {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => {
-                    const testEvents = [
-                      {
-                        source: 'FRM' as const,
-                        target: 'GPT-5' as const,
-                        type: 'request' as const,
-                        message: 'Test request to GPT-5',
-                        data: { test: true }
-                      },
-                      {
-                        source: 'GPT-5' as const,
-                        target: 'FRM' as const,
-                        type: 'response' as const,
-                        message: 'Test response from GPT-5',
-                        data: { test: true },
-                        duration: Math.random() * 2000 + 500
+                  onClick={async () => {
+                    // Trigger both validation and LLM ping to generate real communication events
+                    try {
+                      // Test MCP validation
+                      if (window.electronAPI?.validateSchema) {
+                        // Create a test schema for validation
+                        const testSchema = {
+                          metadata: {
+                            problem_id: 'test-problem',
+                            title: 'Test Problem',
+                            description: 'Test validation schema'
+                          },
+                          input: {
+                            problem_summary: 'Test problem',
+                            scope_objective: 'Test objective',
+                            known_quantities: [],
+                            unknowns: [],
+                            mechanistic_notes: 'Test notes',
+                            constraints_goals: {}
+                          },
+                          modeling: {
+                            equations: [],
+                            measurement_model: [],
+                            symbolic_regression: {
+                              algorithm_type: 'genetic_programming',
+                              function_library: [],
+                              search_strategy: 'random',
+                              data_description: 'Test data',
+                              benchmark_reference: 'Test benchmark',
+                              novelty_metrics: []
+                            }
+                          }
+                        }
+                        
+                        // This will trigger real IPC communication events for MCP
+                        await window.electronAPI.validateSchema(testSchema)
                       }
-                    ]
-                    
-                    testEvents.forEach((event, index) => {
-                      setTimeout(() => {
-                        addEvent(event)
-                      }, index * 1000)
-                    })
+
+                      // Test LLM ping
+                      if (window.electronAPI?.pingLLM) {
+                        // This will trigger real IPC communication events for GPT-5
+                        await window.electronAPI.pingLLM()
+                      }
+                    } catch (error) {
+                      console.error('Test communication failed:', error)
+                    }
                   }}
                   className="h-6 px-2 text-xs flex-shrink-0 text-yellow-600 dark:text-yellow-400 hover:text-yellow-700 dark:hover:text-yellow-300"
-                  aria-label="Generate test events"
+                  aria-label="Test MCP and LLM communication"
                 >
                   <Zap className="h-3 w-3 mr-1" aria-hidden="true" />
                   Test
