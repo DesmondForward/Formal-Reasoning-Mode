@@ -12,6 +12,7 @@ import {
   AlertCircle, 
   Settings, 
   FileText,
+  Activity,
   Download,
   Upload,
   RefreshCw
@@ -30,6 +31,7 @@ import ErrorBoundary from '@/components/ErrorBoundary'
 import { useFRMData } from '@/hooks/useFRMData'
 import { useValidation } from '@/hooks/useValidation'
 import { useTheme } from '@/hooks/useTheme'
+import { useCommunication } from '@/hooks/useCommunication'
 import frmSchema from '/frm_schema.json'
 import { generateSchemaProblem } from '@/utils/schemaGenerator'
 
@@ -44,6 +46,9 @@ const App: React.FC = () => {
     
     const { validation, validateData, validateUnknown } = useValidation(frmSchema)
     console.log('Validation loaded:', validation)
+    
+    const { events } = useCommunication()
+    console.log('Communication loaded:', { eventsCount: events.length })
     
     const [activeTab, setActiveTab] = useState('editor')
     const [isGenerating, setIsGenerating] = useState(false)
@@ -347,7 +352,7 @@ const App: React.FC = () => {
             initial={{ x: -300, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             transition={{ delay: 0.1 }}
-            className="w-[28rem] flex-shrink-0 overflow-y-auto border-r bg-white/50 backdrop-blur-sm dark:bg-slate-900/50"
+            className="w-[19rem] flex-shrink-0 overflow-y-auto border-r bg-white/50 backdrop-blur-sm dark:bg-slate-900/50"
           >
             <div className="p-6">
               <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
@@ -423,7 +428,7 @@ const App: React.FC = () => {
 
           {/* Main Panel */}
           <div className="flex-1 flex min-h-0">
-            {/* Left Panel - Schema Editor Tabs */}
+            {/* Main Content - Schema Editor Tabs */}
             <div className="flex-1 flex flex-col min-h-0">
               <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
                 <div className="border-b bg-white/50 backdrop-blur-sm dark:bg-slate-900/50">
@@ -439,6 +444,20 @@ const App: React.FC = () => {
                     <TabsTrigger value="visualization" className="flex items-center space-x-2">
                       <Calculator className="h-4 w-4" />
                       <span>Visualization</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="communication" className="flex items-center space-x-2">
+                      <div className="relative" aria-hidden="true">
+                        <Activity className="h-4 w-4" />
+                        {events.length > 0 && (
+                          <motion.div
+                            className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full"
+                            animate={{ scale: [1, 1.2, 1] }}
+                            transition={{ duration: 1, repeat: Infinity }}
+                            aria-label="Activity indicator"
+                          />
+                        )}
+                      </div>
+                      <span>Communication</span>
                     </TabsTrigger>
                   </TabsList>
                 </div>
@@ -477,30 +496,26 @@ const App: React.FC = () => {
                           <RefreshCw className="h-4 w-4 animate-spin" />
                           <span>Loading Visualization...</span>
                         </div>
-
                       </div>
                     }>
                       <VisualizationPanel data={data} />
                     </Suspense>
                   </TabsContent>
+                  
+                  <TabsContent value="communication" className="h-full m-0">
+                    <Suspense fallback={
+                      <div className="flex items-center justify-center h-full">
+                        <div className="flex items-center space-x-2">
+                          <RefreshCw className="h-4 w-4 animate-spin" />
+                          <span>Loading Communication Panel...</span>
+                        </div>
+                      </div>
+                    }>
+                      <CommunicationLogPanel />
+                    </Suspense>
+                  </TabsContent>
                 </div>
               </Tabs>
-            </div>
-
-            {/* Right Panel - Communication Log */}
-            <div className="w-[28rem] flex-shrink-0 border-l bg-white/30 backdrop-blur-sm dark:bg-slate-900/30">
-              <div className="p-4 h-full">
-                <Suspense fallback={
-                  <div className="flex items-center justify-center h-full">
-                    <div className="flex items-center space-x-2">
-                      <RefreshCw className="h-4 w-4 animate-spin" />
-                      <span>Loading Communication Panel...</span>
-                    </div>
-                  </div>
-                }>
-                  <CommunicationLogPanel />
-                </Suspense>
-              </div>
             </div>
           </div>
         </div>
