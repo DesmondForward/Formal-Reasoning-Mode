@@ -243,11 +243,13 @@ const CommunicationLogPanel: React.FC = () => {
   }
 
   return (
-    <Card 
-      className="flex flex-col bg-gradient-to-br from-slate-50/50 to-slate-100/50 dark:from-slate-900/50 dark:to-slate-800/50 backdrop-blur-sm border-slate-200/50 dark:border-slate-700/50"
-      role="region"
-      aria-label="Live Communication Panel"
-    >
+    <div className="h-full overflow-y-auto p-6">
+      <div className="max-w-4xl mx-auto">
+        <Card 
+          className="flex flex-col bg-gradient-to-br from-slate-50/50 to-slate-100/50 dark:from-slate-900/50 dark:to-slate-800/50 backdrop-blur-sm border-slate-200/50 dark:border-slate-700/50"
+          role="region"
+          aria-label="Live Communication Panel"
+        >
       <CardHeader className="pb-3 space-y-3">
         {/* Main Header */}
         <div className="flex items-center justify-between">
@@ -669,7 +671,9 @@ const CommunicationLogPanel: React.FC = () => {
           </div>
         </CardContent>
       )}
-    </Card>
+        </Card>
+      </div>
+    </div>
   )
 }
 
