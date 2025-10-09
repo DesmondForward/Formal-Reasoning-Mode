@@ -2,7 +2,7 @@
   "name": "FRM_Schema",
   "$id": "https://example.org/schemas/formal-reasoning-mode.schema.json",
   "title": "Formal Reasoning Mode (FRM) Prompt Schema",
-  "description": "Enhanced schema to drive equation‑first, mechanism‑level reasoning for GPT‑5 with explicit support for symbolic regression, search‑integrated reasoning and rigorous novelty assurance.",
+  "description": "Enhanced schema to drive equation\u2011first, mechanism\u2011level reasoning for GPT\u20115 with explicit support for symbolic regression, search\u2011integrated reasoning and rigorous novelty assurance. This updated version enhances discoverability, modeling defaults, novelty tagging, and integration with external resources.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -28,7 +28,8 @@
         "problem_id": {
           "type": "string",
           "minLength": 1,
-          "pattern": "^[a-zA-Z0-9_-]+$"
+          "pattern": "^[a-zA-Z0-9_-]+$",
+          "description": "Unique problem identifier."
         },
         "domain": {
           "type": "string",
@@ -40,6 +41,7 @@
             "chemical_engineering",
             "chemistry",
             "climate_science",
+            "coding",
             "computational_finance",
             "cybersecurity",
             "data_science",
@@ -51,9 +53,12 @@
             "general",
             "geosciences",
             "materials_science",
+            "mathematics",
             "medicine",
+            "metrology",
             "neuroscience",
             "network_science",
+            "physics",
             "public_health",
             "quantum_computing",
             "renewable_energy",
@@ -63,14 +68,17 @@
             "space_technology",
             "synthetic_biology",
             "systems_biology"
-          ]
+          ],
+          "description": "Primary domain or field of the problem."
         },
         "version": {
           "type": "string",
-          "pattern": "^v?\\d+\\.\\d+(\\.\\d+)?(-[a-zA-Z0-9]+)?$"
+          "pattern": "^v?\\d+\\.\\d+(\\.\\d+)?(-[a-zA-Z0-9]+)?$",
+          "description": "Schema or problem version (semantic versioning)."
         },
         "notes": {
-          "type": "string"
+          "type": "string",
+          "description": "Additional notes or context about the problem."
         },
         "novelty_context": {
           "type": "object",
@@ -97,6 +105,49 @@
                 "system",
                 "other"
               ]
+            },
+            "domains_involved": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "artificial_intelligence",
+                  "astrophysics",
+                  "autonomous_systems",
+                  "biology",
+                  "chemical_engineering",
+                  "chemistry",
+                  "climate_science",
+                  "coding",
+                  "computational_finance",
+                  "cybersecurity",
+                  "data_science",
+                  "economics",
+                  "energy_systems",
+                  "engineering",
+                  "fluid_dynamics",
+                  "fluid_mechanics",
+                  "general",
+                  "geosciences",
+                  "materials_science",
+                  "mathematics",
+                  "medicine",
+                  "metrology",
+                  "neuroscience",
+                  "network_science",
+                  "physics",
+                  "public_health",
+                  "quantum_computing",
+                  "renewable_energy",
+                  "robotics",
+                  "signal_processing",
+                  "social_science",
+                  "space_technology",
+                  "synthetic_biology",
+                  "systems_biology"
+                ]
+              },
+              "description": "List of additional domains or disciplines involved (for cross-domain novelty)."
             }
           }
         }
@@ -193,7 +244,8 @@
             "SDE",
             "discrete",
             "hybrid"
-          ]
+          ],
+          "description": "Type of model abstraction (ODE, PDE, etc.)."
         },
         "variables": {
           "type": "array",
@@ -281,7 +333,7 @@
         },
         "interpretability_required": {
           "type": "boolean",
-          "description": "Indicates if interpretability of the model is required (e.g., for safety‑critical domains)."
+          "description": "Indicates if interpretability of the model is required (e.g., for safety\u2011critical domains)."
         },
         "symbolic_regression": {
           "type": "object",
@@ -292,9 +344,12 @@
               "enum": [
                 "genetic_programming",
                 "deep_learning",
+                "enumerative",
+                "LLM_based",
                 "hybrid",
                 "other"
-              ]
+              ],
+              "description": "Type of symbolic regression approach to use."
             },
             "function_library": {
               "type": "array",
@@ -314,6 +369,20 @@
                   },
                   "domain_notes": {
                     "type": "string"
+                  },
+                  "family": {
+                    "type": "string",
+                    "enum": [
+                      "arithmetic",
+                      "polynomial",
+                      "trigonometric",
+                      "exponential",
+                      "logarithmic",
+                      "logical",
+                      "custom",
+                      "other"
+                    ],
+                    "description": "Functional family or category (e.g., polynomial, trigonometric) for grouping operators."
                   }
                 }
               },
@@ -327,7 +396,9 @@
                 "beam_search",
                 "random_search",
                 "other"
-              ]
+              ],
+              "default": "evolutionary",
+              "description": "Search strategy for equation discovery."
             },
             "data_description": {
               "type": "string"
@@ -348,9 +419,11 @@
                   "citation_overlap",
                   "novascore",
                   "relative_neighbor_density",
-                  "creativity_index"
+                  "creativity_index",
+                  "temporal_novelty"
                 ]
-              }
+              },
+              "description": "List of novelty metric names to evaluate."
             }
           },
           "description": "Details for symbolic regression tasks including algorithm, search strategy, function library and dataset used for equation discovery."
@@ -444,7 +517,7 @@
               "type": "string"
             }
           },
-          "description": "Information about integrated search or retrieval operations (e.g., reinforcement‑learning guided search) used during reasoning."
+          "description": "Information about integrated search or retrieval operations (e.g., reinforcement\u2011learning guided search) used during reasoning."
         }
       }
     },
@@ -470,46 +543,50 @@
         "inference_problem": {
           "$ref": "#/definitions/InferenceProblem"
         },
-        "sensitivity_analysis": {
+        "simulation_scenario": {
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "type": {
-              "type": "string",
-              "enum": [
-                "local",
-                "sobol",
-                "bootstrap"
-              ]
+            "initial_state": {
+              "type": "string"
             },
             "parameters": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
+              "type": "string"
             },
-            "perturbation_fraction": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 1
+            "inputs": {
+              "type": "string"
+            },
+            "horizon": {
+              "type": "string"
             }
           }
         },
-        "uncertainty_propagation": {
+        "narrative_guidance": {
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "method": {
+            "style": {
               "type": "string",
               "enum": [
-                "delta_method",
-                "sampling",
-                "bayesian"
+                "tutorial",
+                "formal",
+                "conversational"
               ]
             },
-            "n_samples": {
-              "type": "integer",
-              "minimum": 1
+            "depth": {
+              "type": "string",
+              "enum": [
+                "high_level",
+                "detailed"
+              ]
+            },
+            "purpose": {
+              "type": "string",
+              "enum": [
+                "insight",
+                "verification",
+                "education"
+              ]
             }
           }
         }
@@ -672,7 +749,7 @@
               }
             }
           },
-          "description": "Generalization metrics verifying model performance on unseen data or cross‑domain benchmarks."
+          "description": "Generalization metrics verifying model performance on unseen data or cross\u2011domain benchmarks."
         },
         "scientific_alignment_checks": {
           "type": "array",
@@ -695,7 +772,7 @@
               }
             }
           },
-          "description": "Checks to ensure the model aligns with established scientific principles or first‑law constraints."
+          "description": "Checks to ensure the model aligns with established scientific principles or first\u2011law constraints."
         },
         "expert_review": {
           "type": "object",
@@ -720,6 +797,19 @@
             }
           },
           "description": "Expert review capturing qualitative assessment and interpretability ratings from domain specialists."
+        },
+        "dynamic_equation_validation": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "method": {
+              "type": "string"
+            }
+          },
+          "description": "Dynamic validation of equations via external simulation or testing (enabled and method if applicable)."
         }
       }
     },
@@ -767,7 +857,7 @@
             "sections_required": {
               "type": "array",
               "contains": {
-                "const": "Results"
+                "const": "SolutionDerivation"
               }
             }
           }
@@ -777,7 +867,7 @@
             "sections_required": {
               "type": "array",
               "contains": {
-                "const": "Validation"
+                "const": "Analysis"
               }
             }
           }
@@ -787,7 +877,7 @@
             "sections_required": {
               "type": "array",
               "contains": {
-                "const": "ActionableRecommendation"
+                "const": "Conclusion"
               }
             }
           }
@@ -797,7 +887,7 @@
             "sections_required": {
               "type": "array",
               "contains": {
-                "const": "RefinementHooks"
+                "const": "References"
               }
             }
           }
@@ -807,37 +897,7 @@
             "sections_required": {
               "type": "array",
               "contains": {
-                "const": "Novelty Statement"
-              }
-            }
-          }
-        },
-        {
-          "properties": {
-            "sections_required": {
-              "type": "array",
-              "contains": {
-                "const": "Prior Work Comparison"
-              }
-            }
-          }
-        },
-        {
-          "properties": {
-            "sections_required": {
-              "type": "array",
-              "contains": {
-                "const": "Redundancy Check"
-              }
-            }
-          }
-        },
-        {
-          "properties": {
-            "sections_required": {
-              "type": "array",
-              "contains": {
-                "const": "Evidence & Citations"
+                "const": "Glossary"
               }
             }
           }
@@ -848,7 +908,17 @@
           "type": "array",
           "minItems": 1,
           "items": {
-            "type": "string"
+            "type": "string",
+            "enum": [
+              "VariablesAndUnitsTable",
+              "ModelEquations",
+              "MethodStatement",
+              "SolutionDerivation",
+              "Analysis",
+              "Conclusion",
+              "References",
+              "Glossary"
+            ]
           }
         },
         "formatting": {
@@ -856,68 +926,40 @@
           "additionalProperties": false,
           "required": [
             "math_notation",
-            "number_format",
-            "significant_figures"
+            "explanation_detail"
           ],
           "properties": {
             "math_notation": {
               "type": "string",
               "enum": [
-                "LaTeX",
-                "ASCII"
+                "latex",
+                "unicode"
               ]
             },
-            "number_format": {
+            "explanation_detail": {
               "type": "string",
               "enum": [
-                "fixed",
-                "scientific",
-                "auto"
+                "terse",
+                "detailed"
               ]
-            },
-            "significant_figures": {
-              "type": "integer",
-              "minimum": 2,
-              "maximum": 6
-            },
-            "novelty_badge": {
-              "type": "object",
-              "additionalProperties": false,
-              "required": [
-                "enabled"
-              ],
-              "properties": {
-                "enabled": {
-                  "type": "boolean"
-                },
-                "style": {
-                  "type": "string"
-                },
-                "text": {
-                  "type": "string"
-                }
-              }
             }
           }
         },
-        "interpretability_requirements": {
+        "safety_note": {
           "type": "object",
           "additionalProperties": false,
           "required": [
-            "narrative_explanation"
+            "flag",
+            "content"
           ],
           "properties": {
-            "narrative_explanation": {
+            "flag": {
               "type": "boolean"
             },
-            "complexity_limit": {
+            "content": {
               "type": "string"
             }
-          },
-          "description": "Requirements on how outputs should be explained to ensure they are understandable and interpretable."
-        },
-        "safety_note": {
-          "type": "string"
+          }
         }
       }
     },
@@ -1108,7 +1150,7 @@
                   "type": "string"
                 }
               },
-              "description": "Cross‑domain similarity evaluation metric (e.g., measured on multiple scientific domains)."
+              "description": "Cross\u2011domain similarity evaluation metric (e.g., measured on multiple scientific domains)."
             }
           }
         },
@@ -1193,6 +1235,13 @@
                   }
                 },
                 "description": "Quantitative creativity assessments capturing originality, feasibility, impact and reliability of the claim."
+              },
+              "novelty_tags": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Semantic tags characterizing the novelty (e.g., 'theoretical', 'cross-domain', 'incremental', 'transformative')."
               }
             }
           }
@@ -1321,7 +1370,7 @@
               "type": "string"
             }
           },
-          "description": "Dataset or benchmark used for novelty evaluation, such as LLM‑SRBench or domain‑specific corpora."
+          "description": "Dataset or benchmark used for novelty evaluation, such as LLM\u2011SRBench or domain\u2011specific corpora."
         }
       },
       "allOf": [
@@ -1352,9 +1401,10 @@
                 "type": "object",
                 "properties": {
                   "final_decision": {
-                    "not": {
-                      "const": "proceed"
-                    }
+                    "const": "reject"
+                  },
+                  "gate_pass": {
+                    "const": false
                   }
                 }
               }
@@ -1362,6 +1412,97 @@
           }
         }
       ]
+    },
+    "integration": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "knowledge_graphs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "version": {
+                "type": "string"
+              },
+              "uri": {
+                "type": "string"
+              }
+            }
+          },
+          "description": "Knowledge graphs integrated or consulted (with optional version identifiers)."
+        },
+        "ontologies": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "version": {
+                "type": "string"
+              },
+              "uri": {
+                "type": "string"
+              }
+            }
+          },
+          "description": "Ontologies used for semantic mappings (including version-controlled references)."
+        },
+        "external_apis": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "purpose": {
+                "type": "string"
+              },
+              "version": {
+                "type": "string"
+              }
+            }
+          },
+          "description": "External APIs or services used (with purpose and version where applicable)."
+        },
+        "benchmarks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "id": {
+                "type": "string"
+              },
+              "version": {
+                "type": "string"
+              }
+            }
+          },
+          "description": "Benchmark suites or datasets leveraged (e.g., SRBench, OpenML), with identifiers."
+        },
+        "model_card": {
+          "type": "object",
+          "properties": {
+            "uri": {
+              "type": "string"
+            },
+            "version": {
+              "type": "string"
+            }
+          },
+          "description": "Link or reference to a Model Card or structured model documentation."
+        }
+      },
+      "description": "Integration hooks for external resources (APIs, knowledge bases, benchmarks, model documentation, etc.)."
     }
   },
   "definitions": {
@@ -1412,6 +1553,13 @@
               "type": "string"
             }
           }
+        },
+        "ontology_refs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "External ontology or knowledge graph identifiers for this concept."
         }
       }
     },
@@ -1476,6 +1624,13 @@
               "type": "object"
             }
           }
+        },
+        "ontology_refs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "External ontology or knowledge graph identifiers for this concept."
         }
       }
     },
@@ -1510,7 +1665,7 @@
       "properties": {
         "expression": {
           "type": "string",
-          "description": "e.g., minimize ∫ I(t)^2 dt + λ∫ u(t) dt"
+          "description": "e.g., minimize \u222b I(t)^2 dt + \u03bb\u222b u(t) dt"
         },
         "sense": {
           "type": "string",
@@ -1538,11 +1693,11 @@
         },
         "lhs": {
           "type": "string",
-          "description": "Left‑hand side, e.g., dS/dt"
+          "description": "Left\u2011hand side, e.g., dS/dt"
         },
         "rhs": {
           "type": "string",
-          "description": "Right‑hand side expression"
+          "description": "Right\u2011hand side expression"
         },
         "mechanism_link": {
           "type": "string",
@@ -1645,10 +1800,6 @@
         }
       }
     },
-    "CitationID": {
-      "type": "string",
-      "pattern": "^CIT[0-9]+$"
-    },
     "Citation": {
       "type": "object",
       "additionalProperties": false,
@@ -1656,40 +1807,31 @@
         "id",
         "title",
         "authors",
-        "year"
+        "year",
+        "source"
       ],
       "properties": {
         "id": {
-          "$ref": "#/definitions/CitationID"
+          "type": "string",
+          "pattern": "^C[0-9]+$"
         },
         "title": {
           "type": "string"
         },
         "authors": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "minItems": 1
-        },
-        "year": {
-          "type": "integer",
-          "minimum": 1800,
-          "maximum": 2100
-        },
-        "venue": {
           "type": "string"
         },
-        "doi": {
-          "type": "string",
-          "pattern": "^10\\.\\d{4,}/[\\w\\.-]+$"
+        "year": {
+          "type": "number"
         },
-        "url": {
-          "type": "string",
-          "format": "uri",
-          "pattern": "^https?://.*"
+        "source": {
+          "type": "string"
         }
       }
+    },
+    "CitationID": {
+      "type": "string",
+      "pattern": "^C[0-9]+$"
     },
     "SimilarityMetric": {
       "type": "object",
@@ -1713,7 +1855,8 @@
             "citation_overlap",
             "novascore",
             "relative_neighbor_density",
-            "creativity_index"
+            "creativity_index",
+            "temporal_novelty"
           ]
         },
         "score": {
