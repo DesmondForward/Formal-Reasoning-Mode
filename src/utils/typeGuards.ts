@@ -147,7 +147,9 @@ export function isNoveltyContext(value: unknown): value is FRMData['metadata']['
     (context.known_baselines === undefined || isArray<string>(context.known_baselines)) &&
     (context.intended_contribution_type === undefined || 
      (isString(context.intended_contribution_type) &&
-     ['model', 'equation', 'method', 'problem', 'analysis', 'dataset', 'system', 'other'].includes(context.intended_contribution_type)))
+     ['model', 'equation', 'method', 'problem', 'analysis', 'dataset', 'system', 'other'].includes(context.intended_contribution_type))) &&
+    (context.domains_involved === undefined ||
+      (isArray(context.domains_involved) && (context.domains_involved as unknown[]).every(isDomainOption)))
   )
 }
 

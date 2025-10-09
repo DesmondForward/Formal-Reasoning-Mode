@@ -7,12 +7,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import {
-  SENSITIVITY_TYPE_OPTIONS,
   SOLUTION_REQUEST_OPTIONS,
-  UNCERTAINTY_METHOD_OPTIONS,
   type FRMData,
-  type SensitivityTypeOption,
-  type UncertaintyMethodOption,
 } from '@/data/schema'
 
 interface SolutionAnalysisEditorProps {
@@ -72,116 +68,131 @@ export const SolutionAnalysisEditor: React.FC<SolutionAnalysisEditorProps> = ({ 
         </Card>
       </motion.div>
 
-      {/* Sensitivity Analysis */}
+      {/* Simulation Scenario */}
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Sensitivity Analysis</CardTitle>
+            <CardTitle className="text-base">Simulation Scenario</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div className="space-y-1">
-                <Label>Type</Label>
-                <select
-                  value={data.sensitivity_analysis?.type ?? 'local'}
-                  onChange={(event) =>
-                    updateField('sensitivity_analysis', {
-                      type: event.target.value as SensitivityTypeOption,
-                      parameters: data.sensitivity_analysis?.parameters ?? [],
-                      perturbation_fraction: data.sensitivity_analysis?.perturbation_fraction ?? 0.1,
-                    })
-                  }
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                >
-                  {SENSITIVITY_TYPE_OPTIONS.map((option) => (
-                    <option key={option} value={option}>
-                      {toTitle(option)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="space-y-1">
-                <Label>Perturbation Fraction</Label>
-                <Input
-                  type="number"
-                  value={data.sensitivity_analysis?.perturbation_fraction ?? 0.1}
-                  onChange={(event) =>
-                    updateField('sensitivity_analysis', {
-                      type: data.sensitivity_analysis?.type ?? 'local',
-                      parameters: data.sensitivity_analysis?.parameters ?? [],
-                      perturbation_fraction: Number(event.target.value),
-                    })
-                  }
-                  step="0.01"
-                  min="0"
-                  max="1"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <Label>Parameters to Analyze</Label>
-              <Textarea
-                value={(data.sensitivity_analysis?.parameters ?? []).join(', ')}
+            <div className="space-y-2">
+              <Label>Initial State</Label>
+              <Input
+                value={data.simulation_scenario?.initial_state ?? ''}
                 onChange={(event) =>
-                  updateField('sensitivity_analysis', {
-                    ...(data.sensitivity_analysis ?? { type: 'local', perturbation_fraction: 0.1 }),
-                    parameters: event.target.value
-                      .split(',')
-                      .map((parameter) => parameter.trim())
-                      .filter(Boolean),
+                  updateField('simulation_scenario', {
+                    ...(data.simulation_scenario ?? {}),
+                    initial_state: event.target.value,
                   })
                 }
-                placeholder="Enter parameter names separated by commas"
-                rows={2}
+                placeholder="e.g., X(0) = 100"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Parameters</Label>
+              <Input
+                value={data.simulation_scenario?.parameters ?? ''}
+                onChange={(event) =>
+                  updateField('simulation_scenario', {
+                    ...(data.simulation_scenario ?? {}),
+                    parameters: event.target.value,
+                  })
+                }
+                placeholder="e.g., k1 = 0.1, k2 = 0.05"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Inputs</Label>
+              <Input
+                value={data.simulation_scenario?.inputs ?? ''}
+                onChange={(event) =>
+                  updateField('simulation_scenario', {
+                    ...(data.simulation_scenario ?? {}),
+                    inputs: event.target.value,
+                  })
+                }
+                placeholder="e.g., u(t) = step function"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Time Horizon</Label>
+              <Input
+                value={data.simulation_scenario?.horizon ?? ''}
+                onChange={(event) =>
+                  updateField('simulation_scenario', {
+                    ...(data.simulation_scenario ?? {}),
+                    horizon: event.target.value,
+                  })
+                }
+                placeholder="e.g., t ∈ [0, 100]"
               />
             </div>
           </CardContent>
         </Card>
       </motion.div>
 
-      {/* Uncertainty Propagation */}
+      {/* Narrative Guidance */}
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Uncertainty Propagation</CardTitle>
+            <CardTitle className="text-base">Narrative Guidance</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <div className="space-y-1">
-                <Label>Method</Label>
+                <Label>Style</Label>
                 <select
-                  value={data.uncertainty_propagation?.method ?? 'delta_method'}
+                  value={data.narrative_guidance?.style ?? 'formal'}
                   onChange={(event) =>
-                    updateField('uncertainty_propagation', {
-                      method: event.target.value as UncertaintyMethodOption,
-                      n_samples: data.uncertainty_propagation?.n_samples ?? 1000,
+                    updateField('narrative_guidance', {
+                      ...(data.narrative_guidance ?? {}),
+                      style: event.target.value as 'tutorial' | 'formal' | 'conversational',
                     })
                   }
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 >
-                  {UNCERTAINTY_METHOD_OPTIONS.map((option) => (
-                    <option key={option} value={option}>
-                      {toTitle(option)}
-                    </option>
-                  ))}
+                  <option value="tutorial">Tutorial</option>
+                  <option value="formal">Formal</option>
+                  <option value="conversational">Conversational</option>
                 </select>
               </div>
 
               <div className="space-y-1">
-                <Label>Number of Samples</Label>
-                <Input
-                  type="number"
-                  value={data.uncertainty_propagation?.n_samples ?? 500}
+                <Label>Depth</Label>
+                <select
+                  value={data.narrative_guidance?.depth ?? 'detailed'}
                   onChange={(event) =>
-                    updateField('uncertainty_propagation', {
-                      method: data.uncertainty_propagation?.method ?? 'delta_method',
-                      n_samples: Number(event.target.value) || 0,
+                    updateField('narrative_guidance', {
+                      ...(data.narrative_guidance ?? {}),
+                      depth: event.target.value as 'high_level' | 'detailed',
                     })
                   }
-                  min="1"
-                />
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="high_level">High Level</option>
+                  <option value="detailed">Detailed</option>
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <Label>Purpose</Label>
+                <select
+                  value={data.narrative_guidance?.purpose ?? 'insight'}
+                  onChange={(event) =>
+                    updateField('narrative_guidance', {
+                      ...(data.narrative_guidance ?? {}),
+                      purpose: event.target.value as 'insight' | 'verification' | 'education',
+                    })
+                  }
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="insight">Insight</option>
+                  <option value="verification">Verification</option>
+                  <option value="education">Education</option>
+                </select>
               </div>
             </div>
           </CardContent>

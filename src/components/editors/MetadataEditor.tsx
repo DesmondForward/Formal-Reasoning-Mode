@@ -2,6 +2,7 @@
 import { motion } from 'framer-motion'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -13,16 +14,12 @@ import {
   type ContributionTypeOption,
   type FRMData,
 } from '@/data/schema'
+import { DOMAIN_DESCRIPTION_MAP, formatDomainLabel } from '@/data/domainMetadata'
 
 interface MetadataEditorProps {
   data: FRMData['metadata']
   onChange: (metadata: FRMData['metadata']) => void
 }
-
-const formatDomainLabel = (value: DomainOption) =>
-  value
-    .replace(/_/g, ' ')
-    .replace(/\b\w/g, (char) => char.toUpperCase())
 
 const formatContributionTypeLabel = (value: ContributionTypeOption) =>
   value
@@ -34,6 +31,20 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({ data, onChange }
     onChange({
       ...data,
       [field]: value,
+    })
+  }
+
+  const handleDomainsInvolvedChange = (domain: DomainOption, isChecked: boolean | 'indeterminate') => {
+    const currentContext = data.novelty_context ?? {}
+    const currentDomains = currentContext.domains_involved ?? []
+    const shouldAdd = isChecked === true
+    const updatedDomains = shouldAdd
+      ? Array.from(new Set([...currentDomains, domain]))
+      : currentDomains.filter((value) => value !== domain)
+
+    updateField('novelty_context', {
+      ...currentContext,
+      domains_involved: updatedDomains,
     })
   }
 
@@ -113,16 +124,10 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({ data, onChange }
               <span className="rounded-md border px-2 py-1 text-xs font-medium uppercase tracking-wide">
                 {formatDomainLabel(data.domain)}
               </span>
-              <span className="text-sm text-slate-600">
-                {data.domain === 'medicine' && 'Medical and clinical applications.'}
-                {data.domain === 'biology' && 'Biological systems and processes.'}
-                {data.domain === 'public_health' && 'Population health and epidemiology.'}
-                {data.domain === 'chemistry' && 'Chemical reactions and kinetics.'}
-                {data.domain === 'engineering' && 'Engineering systems and control.'}
-                {data.domain === 'economics' && 'Economic modeling and optimization.'}
-                {data.domain === 'general' && 'General mathematical modeling.'}
-              </span>
             </div>
+            <p className="mt-2 text-sm text-slate-600">
+              {DOMAIN_DESCRIPTION_MAP[data.domain]}
+            </p>
           </CardContent>
         </Card>
       </motion.div>
@@ -186,6 +191,32 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({ data, onChange }
                 rows={3}
               />
               <p className="text-xs text-slate-500">Enter one baseline per line</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Domains Involved</Label>
+              <p className="text-xs text-slate-500">
+                Select additional domains that meaningfully contribute to the novelty.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-56 overflow-y-auto pr-1">
+                {DOMAIN_OPTIONS.map((domain) => {
+                  const checked = data.novelty_context?.domains_involved?.includes(domain) ?? false
+                  return (
+                    <label
+                      key={domain}
+                      htmlFor={`novelty-domain-${domain}`}
+                      className="flex items-center space-x-2 rounded-md border border-border/50 bg-background/40 px-3 py-2 text-sm hover:bg-muted/50 transition-colors"
+                    >
+                      <Checkbox
+                        id={`novelty-domain-${domain}`}
+                        checked={checked}
+                        onCheckedChange={(next) => handleDomainsInvolvedChange(domain, next)}
+                      />
+                      <span className="flex-1">{formatDomainLabel(domain)}</span>
+                    </label>
+                  )
+                })}
+              </div>
             </div>
           </CardContent>
         </Card>

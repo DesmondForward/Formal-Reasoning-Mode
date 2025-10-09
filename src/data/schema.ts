@@ -173,36 +173,40 @@ export function validateArrayUpdate<T>(
 // validation.
 
 export const DOMAIN_OPTIONS = [
-  'medicine',
-  'biology',
-  'public_health',
-  'chemistry',
-  'engineering',
-  'economics',
   'artificial_intelligence',
-  'climate_science',
-  'quantum_computing',
-  'materials_science',
-  'space_technology',
-  'synthetic_biology',
-  'renewable_energy',
-  'cybersecurity',
-  'autonomous_systems',
-  'data_science',
-  'general',
   'astrophysics',
+  'autonomous_systems',
+  'biology',
+  'chemical_engineering',
+  'chemistry',
+  'climate_science',
+  'coding',
+  'computational_finance',
+  'cybersecurity',
+  'data_science',
+  'economics',
+  'energy_systems',
+  'engineering',
   'fluid_dynamics',
+  'fluid_mechanics',
+  'general',
   'geosciences',
+  'materials_science',
+  'mathematics',
+  'medicine',
+  'metrology',
   'neuroscience',
-  'social_science',
   'network_science',
+  'physics',
+  'public_health',
+  'quantum_computing',
+  'renewable_energy',
   'robotics',
   'signal_processing',
-  'energy_systems',
-  'computational_finance',
-  'systems_biology',
-  'chemical_engineering',
-  'fluid_mechanics'
+  'social_science',
+  'space_technology',
+  'synthetic_biology',
+  'systems_biology'
 ] as const
 export type DomainOption = typeof DOMAIN_OPTIONS[number]
 
@@ -254,15 +258,6 @@ export const SOLUTION_REQUEST_OPTIONS = [
 ] as const
 export type SolutionRequestOption = typeof SOLUTION_REQUEST_OPTIONS[number]
 
-export const SENSITIVITY_TYPE_OPTIONS = ['local', 'sobol', 'bootstrap'] as const
-export type SensitivityTypeOption = typeof SENSITIVITY_TYPE_OPTIONS[number]
-
-export const UNCERTAINTY_METHOD_OPTIONS = [
-  'delta_method',
-  'sampling',
-  'bayesian',
-] as const
-export type UncertaintyMethodOption = typeof UNCERTAINTY_METHOD_OPTIONS[number]
 
 export const OPTIMIZATION_SOLVER_OPTIONS = ['scipy', 'cvxpy', 'gurobi', 'cplex'] as const
 export type OptimizationSolverOption = typeof OPTIMIZATION_SOLVER_OPTIONS[number]
@@ -270,11 +265,6 @@ export type OptimizationSolverOption = typeof OPTIMIZATION_SOLVER_OPTIONS[number
 export const INFERENCE_SAMPLER_OPTIONS = ['mcmc', 'vi', 'hmc', 'nuts'] as const
 export type InferenceSamplerOption = typeof INFERENCE_SAMPLER_OPTIONS[number]
 
-export const MATH_NOTATION_OPTIONS = ['LaTeX', 'ASCII'] as const
-export type MathNotationOption = typeof MATH_NOTATION_OPTIONS[number]
-
-export const NUMBER_FORMAT_OPTIONS = ['fixed', 'scientific', 'auto'] as const
-export type NumberFormatOption = typeof NUMBER_FORMAT_OPTIONS[number]
 
 export const SECTIONS_REQUIRED_MIN = 1 as const
 
@@ -329,15 +319,6 @@ export const NOVELTY_TAG_OPTIONS = [
 ] as const
 export type NoveltyTagOption = typeof NOVELTY_TAG_OPTIONS[number]
 
-export const SENSITIVITY_ANALYSIS_TYPE_OPTIONS = ['local', 'sobol', 'bootstrap'] as const
-export type SensitivityAnalysisTypeOption = typeof SENSITIVITY_ANALYSIS_TYPE_OPTIONS[number]
-
-export const UNCERTAINTY_PROPAGATION_METHOD_OPTIONS = [
-  'delta_method',
-  'sampling',
-  'bayesian'
-] as const
-export type UncertaintyPropagationMethodOption = typeof UNCERTAINTY_PROPAGATION_METHOD_OPTIONS[number]
 
 export const NOVELTY_ERROR_CODE_OPTIONS = [
   'COVERAGE_LOW',
@@ -589,6 +570,7 @@ export interface FRMData {
       problem_lineage_note?: string
       known_baselines?: string[]
       intended_contribution_type?: ContributionTypeOption
+      domains_involved?: DomainOption[]
     }
   }
   input: {
@@ -698,14 +680,16 @@ export interface FRMData {
       likelihood: string
       sampler: string
     }
-    sensitivity_analysis?: {
-      type: SensitivityAnalysisTypeOption
-      parameters: string[]
-      perturbation_fraction: number
+    simulation_scenario?: {
+      initial_state: string
+      parameters: string
+      inputs: string
+      horizon: string
     }
-    uncertainty_propagation?: {
-      method: UncertaintyPropagationMethodOption
-      n_samples: number
+    narrative_guidance?: {
+      style: 'tutorial' | 'formal' | 'conversational'
+      depth: 'high_level' | 'detailed'
+      purpose: 'insight' | 'verification' | 'education'
     }
   }
   validation: {
@@ -741,20 +725,13 @@ export interface FRMData {
   output_contract: {
     sections_required: string[]
     formatting: {
-      math_notation: MathNotationOption
-      number_format: NumberFormatOption
-      significant_figures: number
-      novelty_badge?: {
-        enabled: boolean
-        style?: string
-        text?: string
-      }
+      math_notation: 'latex' | 'unicode'
+      explanation_detail: 'terse' | 'detailed'
     }
-    interpretability_requirements?: {
-      narrative_explanation: boolean
-      complexity_limit?: string
+    safety_note: {
+      flag: boolean
+      content: string
     }
-    safety_note: string
   }
   novelty_assurance: {
     prior_work: {
@@ -842,6 +819,7 @@ export const EMPTY_FRM_DATA: DeepReadonly<FRMData> = {
       problem_lineage_note: 'Describe how this problem relates to existing work.',
       known_baselines: [],
       intended_contribution_type: 'model',
+      domains_involved: [],
     },
   },
   input: {
@@ -917,15 +895,6 @@ export const EMPTY_FRM_DATA: DeepReadonly<FRMData> = {
   },
   solution_and_analysis: {
     solution_requests: ['solve_numeric'],
-    sensitivity_analysis: {
-      type: 'local',
-      parameters: ['X'],
-      perturbation_fraction: 0.1,
-    },
-    uncertainty_propagation: {
-      method: 'delta_method',
-      n_samples: 500,
-    },
   },
   validation: {
     unit_consistency_check: true,
@@ -946,30 +915,20 @@ export const EMPTY_FRM_DATA: DeepReadonly<FRMData> = {
       'VariablesAndUnitsTable',
       'ModelEquations',
       'MethodStatement',
-      'Results',
-      'Validation',
-      'ActionableRecommendation',
-      'RefinementHooks',
-      'Novelty Statement',
-      'Prior Work Comparison',
-      'Redundancy Check',
-      'Evidence & Citations',
+      'SolutionDerivation',
+      'Analysis',
+      'Conclusion',
+      'References',
+      'Glossary',
     ],
     formatting: {
-      math_notation: 'LaTeX',
-      number_format: 'auto',
-      significant_figures: 4,
-      novelty_badge: {
-        enabled: true,
-        style: 'highlight',
-        text: 'Novel Contribution',
-      },
+      math_notation: 'latex',
+      explanation_detail: 'detailed',
     },
-    interpretability_requirements: {
-      narrative_explanation: true,
-      complexity_limit: 'moderate',
+    safety_note: {
+      flag: false,
+      content: 'Flag downstream safety considerations here.',
     },
-    safety_note: 'Flag downstream safety considerations here.',
   },
   novelty_assurance: {
     prior_work: {

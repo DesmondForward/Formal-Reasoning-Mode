@@ -8,11 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import {
-  MATH_NOTATION_OPTIONS,
-  NUMBER_FORMAT_OPTIONS,
   type FRMData,
-  type MathNotationOption,
-  type NumberFormatOption,
 } from '@/data/schema'
 
 interface OutputContractEditorProps {
@@ -24,14 +20,11 @@ const DEFAULT_SECTIONS: FRMData['output_contract']['sections_required'] = [
   'VariablesAndUnitsTable',
   'ModelEquations',
   'MethodStatement',
-  'Results',
-  'Validation',
-  'ActionableRecommendation',
-  'RefinementHooks',
-  'Novelty Statement',
-  'Prior Work Comparison',
-  'Redundancy Check',
-  'Evidence & Citations',
+  'SolutionDerivation',
+  'Analysis',
+  'Conclusion',
+  'References',
+  'Glossary',
 ]
 
 const toTitle = (value: string) =>
@@ -137,64 +130,76 @@ export const OutputContractEditor: React.FC<OutputContractEditorProps> = ({ data
               <div className="space-y-1">
                 <Label>Math Notation</Label>
                 <Select
-                  value={data.formatting?.math_notation ?? 'LaTeX'}
-                  onValueChange={(value) => updateFormatting('math_notation', value as MathNotationOption)}
+                  value={data.formatting?.math_notation ?? 'latex'}
+                  onValueChange={(value) => updateFormatting('math_notation', value as 'latex' | 'unicode')}
                 >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {MATH_NOTATION_OPTIONS.map((option) => (
-                      <SelectItem key={option} value={option}>
-                        {option}
-                      </SelectItem>
-                    ))}
+                    <SelectItem value="latex">LaTeX</SelectItem>
+                    <SelectItem value="unicode">Unicode</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label>Number Format</Label>
+                <Label>Explanation Detail</Label>
                 <Select
-                  value={data.formatting?.number_format ?? 'auto'}
-                  onValueChange={(value) => updateFormatting('number_format', value as NumberFormatOption)}
+                  value={data.formatting?.explanation_detail ?? 'detailed'}
+                  onValueChange={(value) => updateFormatting('explanation_detail', value as 'terse' | 'detailed')}
                 >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {NUMBER_FORMAT_OPTIONS.map((option) => (
-                      <SelectItem key={option} value={option}>
-                        {toTitle(option)}
-                      </SelectItem>
-                    ))}
+                    <SelectItem value="terse">Terse</SelectItem>
+                    <SelectItem value="detailed">Detailed</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-            </div>
-
-            <div className="space-y-1">
-              <Label>Significant Figures</Label>
-              <Input
-                type="number"
-                value={data.formatting?.significant_figures ?? 4}
-                onChange={(event) => updateFormatting('significant_figures', Number(event.target.value) || 0)}
-                min="2"
-                max="6"
-              />
             </div>
           </CardContent>
         </Card>
       </motion.div>
 
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-        <Label htmlFor="safety_note">Safety Note</Label>
-        <Textarea
-          id="safety_note"
-          value={data.safety_note ?? ''}
-          onChange={(event) => updateField('safety_note', event.target.value)}
-          placeholder="Add any safety disclaimers or warnings..."
-          rows={3}
-        />
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Safety Note</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="safety_flag"
+                checked={data.safety_note?.flag ?? false}
+                onChange={(event) =>
+                  updateField('safety_note', {
+                    ...(data.safety_note ?? { flag: false, content: '' }),
+                    flag: event.target.checked,
+                  })
+                }
+                className="rounded border-gray-300"
+              />
+              <Label htmlFor="safety_flag">Safety concerns identified</Label>
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="safety_content">Safety Note Content</Label>
+              <Textarea
+                id="safety_content"
+                value={data.safety_note?.content ?? ''}
+                onChange={(event) =>
+                  updateField('safety_note', {
+                    ...(data.safety_note ?? { flag: false, content: '' }),
+                    content: event.target.value,
+                  })
+                }
+                placeholder="Add any safety disclaimers or warnings..."
+                rows={3}
+              />
+            </div>
+          </CardContent>
+        </Card>
       </motion.div>
     </div>
   )

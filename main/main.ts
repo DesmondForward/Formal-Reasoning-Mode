@@ -140,84 +140,30 @@ const getOpenAIConfig = () => ({
 })
 
 const DEFAULT_SYSTEM_PROMPT = `You are an assistant that creates Formal Reasoning Mode (FRM) problem JSON documents.
-Each response must be a single JSON object conforming to the FRM schema with the top-level keys: metadata, input, modeling, method_selection, solution_and_analysis, validation, output_contract, novelty_assurance.
+Your reply MUST be a single JSON object that strictly matches the FRM schema. Do not wrap the JSON in Markdown fences or add commentary.
 
-CRITICAL SCHEMA REQUIREMENTS:
-- The "metadata" section MUST include: problem_id, domain, version, and MAY include: notes, novelty_context (object with problem_lineage_note, known_baselines, intended_contribution_type)
-- The "input" section MUST include: problem_summary, scope_objective, known_quantities (array), unknowns (array), mechanistic_notes (string), constraints_goals (object)
-- The "modeling" section MUST include: model_class (string), variables (array), equations (array), initial_conditions (array), measurement_model (array), assumptions (array), interpretability_required (boolean), symbolic_regression (object)
-- Each equation in the "modeling.equations" array MUST include: id, lhs, rhs, mechanism_link, novelty_tag ("new", "variant", "borrowed", or "baseline"), prior_art_citations (array), divergence_note (string)
-- Each item in "modeling.measurement_model" array MUST include: observable (string), expression (string), noise_model (string), novelty_tag (string), prior_art_citations (array), divergence_note (string)
-- The "modeling.symbolic_regression" object MUST include: algorithm_type, function_library (array of objects with "name" and "allowed" properties), search_strategy, data_description (string), benchmark_reference (string), novelty_metrics (array)
-- CRITICAL: function_library must be an array of objects like: [{"name": "add", "allowed": true}, {"name": "multiply", "allowed": true}, {"name": "exp", "allowed": false}]
-- CRITICAL: Every equation MUST have a novelty_tag property - this is REQUIRED and will cause validation failure if missing
-- The "validation" section MUST include: unit_consistency_check (boolean), mechanism_coverage_check (boolean), constraint_satisfaction_metrics (array), fit_quality_metrics (array), counterfactual_sanity (object), novelty_gate_pass (boolean), novelty_checks (array), generalization_checks (array), scientific_alignment_checks (array), expert_review (object)
-- CRITICAL: The validation section MUST include novelty_gate_pass: true - this is REQUIRED and will cause validation failure if missing
-- Each item in "validation.novelty_checks" array MUST include: name (string), passed (boolean), value (number), threshold (number), direction ("lower_is_better" or "higher_is_better"), notes (string)
-- Each item in "validation.generalization_checks" array MUST include: dataset_used (string), metric_name (string), value (number), threshold (number), passed (boolean), notes (string)
-- Each item in "validation.scientific_alignment_checks" array MUST include: principle_name (string), passed (boolean), comment (string)
-- The "validation.expert_review" object MUST include: experts (array), summary (string), interpretability_score (number)
-- The "output_contract" section MUST include: sections_required (array with specific constants), formatting (object), safety_note (string), interpretability_requirements (object)
-- The "output_contract.sections_required" array MUST contain these exact strings: "VariablesAndUnitsTable", "ModelEquations", "MethodStatement", "Results", "Validation", "ActionableRecommendation", "RefinementHooks", "Novelty Statement", "Prior Work Comparison", "Redundancy Check", "Evidence & Citations"
-- The "output_contract.formatting" object MUST include: math_notation, number_format, significant_figures, novelty_badge (object)
-- CRITICAL: number_format MUST be exactly one of: "fixed", "scientific", "auto" (NO other values allowed)
-- The "output_contract.interpretability_requirements" object MUST include: narrative_explanation (boolean), complexity_limit (string)
-- The "novelty_assurance" section MUST include: prior_work, citations, citation_checks, similarity_assessment, novelty_claims, redundancy_check, evidence_tracking, error_handling, evaluation_dataset (object)
-- Each item in "novelty_claims" MUST include: id (pattern ^NC[0-9]+$), statement (min 20 chars), category (one of: "model", "equation", "method", "problem", "analysis", "dataset", "system"), evidence_citations (array), tests (array), expected_impact (string), creativity_scores (object)
-- Each item in "novelty_claims.tests" array MUST include: name (string), result (string), evidence_citation_ids (array)
-- The "novelty_claims.creativity_scores" object MUST include: originality (number), feasibility (number), impact (number), reliability (number)
-- The "similarity_assessment" object MUST include: metrics (array), aggregates (object), self_overlap_ratio (number), cross_domain_performance (object)
-- The "evidence_tracking" object MUST include: evidence_map (array), artifacts (array)
-- CRITICAL: evidence_tracking.evidence_map[].source_type MUST be exactly one of: "experimental_data", "simulation", "benchmark", "theoretical" (NO other values allowed)
-- Each item in "evidence_tracking.artifacts" array MUST include: type (string), uri (string), hash (string)
-- CRITICAL: evidence_tracking.artifacts[].type MUST be exactly one of: "graph", "table", "notebook", "code", "dataset", "other" (NO other values allowed)
-- The "solution_and_analysis" section MUST include: solution_requests (array), sensitivity_analysis (object), uncertainty_propagation (object), optimization_problem (object), inference_problem (object)
-- solution_requests array items MUST be exactly one of: "solve_numeric", "solve_analytic", "optimize", "infer" (NO other values allowed)
-- sensitivity_analysis object MUST have exactly: type ("local", "sobol", or "bootstrap"), parameters (array of strings), perturbation_fraction (number >= 0)
-- uncertainty_propagation object MUST have exactly: method ("delta_method", "sampling", or "bayesian"), n_samples (integer >= 1)
-- The "optimization_problem" object MUST include: objective (string), constraints (array), solver (string)
-- The "inference_problem" object MUST include: prior (string), likelihood (string), sampler (string)
-- All arrays must have at least the minimum required items as specified in the schema
-- All required string fields must be non-empty
-- All required object fields must be present and properly structured
-- NO additional properties allowed beyond what the schema defines (additionalProperties: false)
+Top-level keys (no others allowed): metadata, input, modeling, method_selection, solution_and_analysis, validation, output_contract, novelty_assurance.
 
-ABSOLUTELY CRITICAL - NO EXTRA PROPERTIES:
-- DO NOT add any properties ending with "_extra" (like method_selection_extra, solution_and_analysis_extra, etc.)
-- DO NOT add any properties not explicitly defined in the schema
-- The schema has "additionalProperties": false which means ANY extra property will cause validation to fail
-- Only include the exact properties defined in the schema for each section
+Key schema rules:
+• metadata – include problem_id, domain, version. domain must be one of: artificial_intelligence, astrophysics, autonomous_systems, biology, chemical_engineering, chemistry, climate_science, coding, computational_finance, cybersecurity, data_science, economics, energy_systems, engineering, fluid_dynamics, fluid_mechanics, general, geosciences, materials_science, mathematics, medicine, metrology, neuroscience, network_science, physics, public_health, quantum_computing, renewable_energy, robotics, signal_processing, social_science, space_technology, synthetic_biology, systems_biology. Optional novelty_context may contain problem_lineage_note, known_baselines (array of strings), intended_contribution_type (model|equation|method|problem|analysis|dataset|system|other), domains_involved (array of domain enum values).
+• input – provide problem_summary, scope_objective, mechanistic_notes, known_quantities (array of Quantity objects), unknowns (array of Variable objects with at least one entry), and constraints_goals {hard_constraints[], soft_preferences[], objective}. Constraint.type must be "equality" or "inequality"; Objective.sense must be "minimize" or "maximize".
+• modeling – required fields: model_class (ODE|PDE|DAE|SDE|discrete|hybrid), variables (array with ≥1 Variable), equations (array with ≥1 Equation). Optional arrays: initial_conditions, measurement_model, assumptions. interpretability_required is a boolean. symbolic_regression, when provided, must include algorithm_type, function_library array of {name, allowed}, search_strategy, data_description, benchmark_reference, novelty_metrics (array of strings). Every equation id must match ^(E|M|H)[0-9]+$, include lhs, rhs, mechanism_link, novelty_tag (new|variant|borrowed|baseline); prior_art_citations entries must be CitationID strings matching ^C[0-9]+$ and should reference entries in novelty_assurance.citations.
+• method_selection – include problem_type (dynamics|optimization|inference|simulation) and chosen_methods (array ≥1) with objects containing name and justification. Optional fields: prior_art_citations (array of CitationIDs), novelty_tag, novelty_diff, tolerances {absolute, relative}. If search_integration is used, include {enabled, tools_used[], strategy, justification}.
+• solution_and_analysis – include solution_requests (array with values drawn only from ["solve_numeric","solve_analytic","optimize","infer"]). Optional: optimization_problem {objective, constraints[], solver}, inference_problem {prior, likelihood, sampler}, simulation_scenario {initial_state, parameters, inputs, horizon}, narrative_guidance {style (tutorial|formal|conversational), depth (high_level|detailed), purpose (insight|verification|education)}. DO NOT include sensitivity_analysis, uncertainty_propagation, or any other properties not listed here.
+• validation – must contain unit_consistency_check, mechanism_coverage_check, novelty_gate_pass (set to true), constraint_satisfaction_metrics (array of {name,value,threshold}), fit_quality_metrics (same structure), counterfactual_sanity {enabled, perturb_percent ≥0}. Optional: novelty_checks (with direction lower_is_better|higher_is_better), generalization_checks, scientific_alignment_checks, expert_review {experts array ≥1, summary, interpretability_score}, dynamic_equation_validation.
+• output_contract – sections_required must be an array that contains ALL of the following strings at least once (no extras): "VariablesAndUnitsTable", "ModelEquations", "MethodStatement", "SolutionDerivation", "Analysis", "Conclusion", "References", "Glossary". formatting must be exactly { "math_notation": "latex"|"unicode", "explanation_detail": "terse"|"detailed" } with NO other properties. safety_note must be { "flag": boolean, "content": string } with NO other properties. DO NOT include number_format, significant_figures, novelty_badge, interpretability_requirements, or any other properties not listed here.
+• novelty_assurance – include prior_work {search_queries array ≥1, literature_corpus_summary (≥30 chars), key_papers array of CitationIDs matching ^C[0-9]+$}, citations array ≥3 with objects {id: "C001" style, title, authors (single string), year (number), source (string)}. citation_checks must contain coverage_ratio (0-1), paraphrase_overlap (0-1), coverage_min_threshold (0.5-0.95) and optional conflicts[]. similarity_assessment requires metrics array (≥3) and aggregates {max_similarity, min_novelty_score, passes}; optional self_overlap_ratio, cross_domain_performance. novelty_claims array requires id matching ^NC[0-9]+$, statement ≥20 chars, category (model|equation|method|problem|analysis|dataset|system), evidence_citations (CitationID array ≥1), plus creativity_scores {originality, feasibility, impact, reliability} in [0,1]; include tests when useful. redundancy_check must list rules_applied[], final_decision ("proceed"|"revise"|"reject"), justification (≥20 chars), gate_pass true, optional blocker_reasons, overrides. evidence_tracking requires evidence_map array (each entry with section, citation_ids array, optional claim_id, file_ids, source_type from experimental_data|simulation|benchmark|theoretical) and may include artifacts array with type (graph|table|notebook|code|dataset|other), uri, optional hash. error_handling must include novelty_errors array, missing_evidence_policy ("fail_validation"|"allow_with_warning"), on_fail_action ("reject"|"request_more_search"|"revise"|"defer"). evaluation_dataset is optional but, if present, must follow the schema (name, description, data_scope, anonymization_methods).
 
-EXAMPLE STRUCTURE (use as template):
-{
-  "metadata": {
-    "problem_id": "unique-problem-id",
-    "domain": "medicine",
-    "version": "v1.0",
-    "notes": "Brief description",
-    "novelty_context": {
-      "problem_lineage_note": "How this relates to existing work",
-      "known_baselines": ["baseline1", "baseline2"],
-      "intended_contribution_type": "model"
-    }
-  },
-  "input": {
-    "problem_summary": "Detailed problem description",
-    "scope_objective": "What needs to be determined",
-    "known_quantities": [
-      {"symbol": "k1", "value": 0.5, "units": "1/day", "description": "Rate constant"}
-    ],
-    "unknowns": [
-      {"symbol": "X", "description": "State variable", "role": "state", "units": "mg/L"}
-    ],
-    "mechanistic_notes": "Biological/physical mechanisms",
-    "constraints_goals": {
-      "hard_constraints": [{"expression": "X >= 0", "type": "inequality"}],
-      "soft_preferences": [],
-      "objective": {"expression": "minimize X", "sense": "minimize"}
-    }
-  },
-  "modeling": {
+Citation discipline:
+- All citation IDs anywhere in the document (prior_art_citations, key_papers, evidence_map, etc.) must use the same ^C[0-9]+$ pattern and refer to objects declared in novelty_assurance.citations.
+- Use consistent numbering starting at C001, C002, … and NC001 for novelty claims.
+
+General constraints:
+- All required arrays must meet their minimum item counts.
+- Use booleans and numbers for boolean/number fields (no strings like "true" or "0.8").
+- Strings that represent summaries or justifications should be well-formed prose (≥20 characters when the schema implies detail).
+- Do not include any property that the schema does not define (every section has additionalProperties=false).
+- Return valid UTF-8 JSON with proper quoting and without comments.
     "model_class": "ODE",
     "variables": [
       {"symbol": "X", "description": "State variable", "role": "state", "units": "mg/L"}
@@ -281,15 +227,6 @@ EXAMPLE STRUCTURE (use as template):
       "likelihood": "Gaussian(X_obs, sigma^2)",
       "sampler": "mcmc"
     },
-    "sensitivity_analysis": {
-      "type": "local",
-      "parameters": ["k1"],
-      "perturbation_fraction": 0.1
-    },
-    "uncertainty_propagation": {
-      "method": "delta_method",
-      "n_samples": 500
-    }
   },
   "validation": {
     "unit_consistency_check": true,
@@ -340,30 +277,20 @@ EXAMPLE STRUCTURE (use as template):
       "VariablesAndUnitsTable",
       "ModelEquations",
       "MethodStatement",
-      "Results",
-      "Validation",
-      "ActionableRecommendation",
-      "RefinementHooks",
-      "Novelty Statement",
-      "Prior Work Comparison", 
-      "Redundancy Check",
-      "Evidence & Citations"
+      "SolutionDerivation",
+      "Analysis",
+      "Conclusion",
+      "References",
+      "Glossary"
     ],
     "formatting": {
-      "math_notation": "LaTeX",
-      "number_format": "auto",
-      "significant_figures": 4,
-      "novelty_badge": {
-        "enabled": true,
-        "style": "highlight",
-        "text": "Novel Contribution"
-      }
+      "math_notation": "latex",
+      "explanation_detail": "detailed"
     },
-    "interpretability_requirements": {
-      "narrative_explanation": true,
-      "complexity_limit": "moderate"
-    },
-    "safety_note": "No safety concerns identified"
+    "safety_note": {
+      "flag": false,
+      "content": "No safety concerns identified"
+    }
   },
   "novelty_assurance": {
     "prior_work": {
@@ -894,7 +821,7 @@ const buildUserPrompt = (options: SchemaGenerationOptions = {}): string => {
     '',
     'Additional Requirements:',
     '- validation must include constraint_satisfaction_metrics, fit_quality_metrics, and counterfactual_sanity settings.',
-    '- output_contract.sections_required must include EXACTLY these eleven required sections (no custom names): "VariablesAndUnitsTable", "ModelEquations", "MethodStatement", "Results", "Validation", "ActionableRecommendation", "RefinementHooks", "Novelty Statement", "Prior Work Comparison", "Redundancy Check", "Evidence & Citations".',
+    '- output_contract.sections_required must include EXACTLY these eight required sections (no custom names): "VariablesAndUnitsTable", "ModelEquations", "MethodStatement", "SolutionDerivation", "Analysis", "Conclusion", "References", "Glossary".',
     '- Keep narrative text concise (<=40 words per description) to stay within the token budget.',
     '- Respect the FRM schema data types exactly (numbers for numeric fields, strings otherwise) and avoid additional properties not defined by the schema.',
     '',
@@ -982,10 +909,182 @@ const removeExtraProperties = (obj: unknown): unknown => {
     'novelty_assurance'
   ])
 
-  // Only include allowed top-level properties
+  // Only include allowed top-level properties and clean their contents
   for (const [key, value] of Object.entries(objRecord)) {
     if (allowedTopLevelProperties.has(key)) {
+      if (key === 'solution_and_analysis') {
+        result[key] = cleanSolutionAndAnalysis(value)
+      } else if (key === 'output_contract') {
+        result[key] = cleanOutputContract(value)
+      } else if (key === 'novelty_assurance') {
+        result[key] = cleanNoveltyAssurance(value)
+      } else {
+        result[key] = value
+      }
+    }
+  }
+
+  return result
+}
+
+// Clean solution_and_analysis to only include allowed properties
+const cleanSolutionAndAnalysis = (obj: unknown): unknown => {
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) {
+    return obj
+  }
+
+  const result: Record<string, unknown> = {}
+  const objRecord = obj as Record<string, unknown>
+
+  // Allowed properties for solution_and_analysis
+  const allowedProperties = new Set([
+    'solution_requests',
+    'optimization_problem',
+    'inference_problem',
+    'simulation_scenario',
+    'narrative_guidance'
+  ])
+
+  for (const [key, value] of Object.entries(objRecord)) {
+    if (allowedProperties.has(key)) {
       result[key] = value
+    }
+  }
+
+  return result
+}
+
+// Clean output_contract to only include allowed properties
+const cleanOutputContract = (obj: unknown): unknown => {
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) {
+    return obj
+  }
+
+  const result: Record<string, unknown> = {}
+  const objRecord = obj as Record<string, unknown>
+
+  // Allowed properties for output_contract
+  const allowedProperties = new Set([
+    'sections_required',
+    'formatting',
+    'safety_note'
+  ])
+
+  for (const [key, value] of Object.entries(objRecord)) {
+    if (allowedProperties.has(key)) {
+      if (key === 'formatting') {
+        result[key] = cleanFormatting(value)
+      } else if (key === 'safety_note') {
+        result[key] = cleanSafetyNote(value)
+      } else {
+        result[key] = value
+      }
+    }
+  }
+
+  return result
+}
+
+// Clean formatting to only include allowed properties
+const cleanFormatting = (obj: unknown): unknown => {
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) {
+    // Return default formatting if not an object
+    return {
+      math_notation: 'latex',
+      explanation_detail: 'detailed'
+    }
+  }
+
+  const result: Record<string, unknown> = {}
+  const objRecord = obj as Record<string, unknown>
+
+  // Allowed properties for formatting
+  const allowedProperties = new Set([
+    'math_notation',
+    'explanation_detail'
+  ])
+
+  for (const [key, value] of Object.entries(objRecord)) {
+    if (allowedProperties.has(key)) {
+      result[key] = value
+    }
+  }
+
+  // Ensure required properties exist with valid values
+  if (!('math_notation' in result) || !['latex', 'unicode'].includes(result.math_notation as string)) {
+    result.math_notation = 'latex'
+  }
+  if (!('explanation_detail' in result) || !['terse', 'detailed'].includes(result.explanation_detail as string)) {
+    result.explanation_detail = 'detailed'
+  }
+
+  return result
+}
+
+// Clean safety_note to ensure it's an object with required properties
+const cleanSafetyNote = (obj: unknown): unknown => {
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) {
+    // If it's not an object, create a default one
+    return {
+      flag: false,
+      content: typeof obj === 'string' ? obj : 'No safety concerns identified'
+    }
+  }
+
+  const result: Record<string, unknown> = {}
+  const objRecord = obj as Record<string, unknown>
+
+  // Allowed properties for safety_note
+  const allowedProperties = new Set([
+    'flag',
+    'content'
+  ])
+
+  for (const [key, value] of Object.entries(objRecord)) {
+    if (allowedProperties.has(key)) {
+      result[key] = value
+    }
+  }
+
+  // Ensure required properties exist
+  if (!('flag' in result)) {
+    result.flag = false
+  }
+  if (!('content' in result)) {
+    result.content = 'No safety concerns identified'
+  }
+
+  return result
+}
+
+// Clean novelty_assurance to ensure conflicts array has proper structure
+const cleanNoveltyAssurance = (obj: unknown): unknown => {
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) {
+    return obj
+  }
+
+  const result: Record<string, unknown> = {}
+  const objRecord = obj as Record<string, unknown>
+
+  // Copy all properties first
+  for (const [key, value] of Object.entries(objRecord)) {
+    result[key] = value
+  }
+
+  // Clean citation_checks.conflicts if it exists
+  if (result.citation_checks && typeof result.citation_checks === 'object' && !Array.isArray(result.citation_checks)) {
+    const citationChecks = result.citation_checks as Record<string, unknown>
+    if (Array.isArray(citationChecks.conflicts)) {
+      citationChecks.conflicts = citationChecks.conflicts.filter((item: unknown) => {
+        if (!item || typeof item !== 'object' || Array.isArray(item)) {
+          return false
+        }
+        const conflict = item as Record<string, unknown>
+        // Ensure it has the required properties
+        return typeof conflict.citation_id === 'string' && 
+               typeof conflict.issue === 'string' && 
+               typeof conflict.resolution === 'string'
+      })
     }
   }
 
