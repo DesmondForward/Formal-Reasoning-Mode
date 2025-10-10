@@ -1826,6 +1826,15 @@
         },
         "source": {
           "type": "string"
+        },
+        "venue": {
+          "type": "string"
+        },
+        "doi": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
         }
       }
     },

@@ -89,8 +89,9 @@ export const NoveltyAssuranceEditor: React.FC<NoveltyAssuranceEditorProps> = ({ 
     const newCitation = {
       id: `CIT${String(data.citations.length + 1).padStart(3, '0')}`,
       title: '',
-      authors: [''],
+      authors: '',
       year: new Date().getFullYear(),
+      source: '',
     }
     onChange({
       ...data,
@@ -267,9 +268,18 @@ export const NoveltyAssuranceEditor: React.FC<NoveltyAssuranceEditorProps> = ({ 
                 <div className="space-y-2">
                   <Label>Authors (comma-separated) *</Label>
                   <Input
-                    value={citation.authors.join(', ')}
-                    onChange={(e) => updateCitation(index, 'authors', e.target.value.split(',').map(a => a.trim()))}
+                    value={citation.authors}
+                    onChange={(e) => updateCitation(index, 'authors', e.target.value)}
                     placeholder="Author One, Author Two"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label>Source *</Label>
+                  <Input
+                    value={citation.source || ''}
+                    onChange={(e) => updateCitation(index, 'source', e.target.value)}
+                    placeholder="Journal or Conference"
                   />
                 </div>
                 

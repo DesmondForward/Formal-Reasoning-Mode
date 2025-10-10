@@ -272,6 +272,8 @@ export const SECTIONS_REQUIRED_MIN = 1 as const
 export const SYMBOLIC_REGRESSION_ALGORITHM_OPTIONS = [
   'genetic_programming',
   'deep_learning',
+  'enumerative',
+  'LLM_based',
   'hybrid',
   'other'
 ] as const
@@ -295,7 +297,8 @@ export const NOVELTY_METRIC_OPTIONS = [
   'citation_overlap',
   'novascore',
   'relative_neighbor_density',
-  'creativity_index'
+  'creativity_index',
+  'temporal_novelty'
 ] as const
 export type NoveltyMetricOption = typeof NOVELTY_METRIC_OPTIONS[number]
 
@@ -742,8 +745,9 @@ export interface FRMData {
     citations: Array<{
       id: string
       title: string
-      authors: string[]
+      authors: string
       year: number
+      source: string
       venue?: string
       doi?: string
       url?: string
@@ -813,7 +817,7 @@ export const EMPTY_FRM_DATA: DeepReadonly<FRMData> = {
   metadata: {
     problem_id: 'draft-problem',
     domain: 'general',
-    version: 'v1.0',
+    version: 'v1.0.3',
     notes: 'Replace with domain-specific notes.',
     novelty_context: {
       problem_lineage_note: 'Describe how this problem relates to existing work.',
@@ -940,22 +944,25 @@ export const EMPTY_FRM_DATA: DeepReadonly<FRMData> = {
       {
         id: 'CIT001',
         title: 'Placeholder Citation 1',
-        authors: ['Author One', 'Author Two'],
+        authors: 'Author One, Author Two',
         year: 2023,
+        source: 'Placeholder Journal',
         venue: 'Placeholder Journal',
       },
       {
         id: 'CIT002',
         title: 'Placeholder Citation 2',
-        authors: ['Author Three'],
+        authors: 'Author Three',
         year: 2022,
+        source: 'Another Journal',
         venue: 'Another Journal',
       },
       {
         id: 'CIT003',
         title: 'Placeholder Citation 3',
-        authors: ['Author Four', 'Author Five'],
+        authors: 'Author Four, Author Five',
         year: 2021,
+        source: 'Third Journal',
         venue: 'Third Journal',
       },
     ],
@@ -1201,7 +1208,7 @@ export function removeFRMArrayItem<K extends SectionKey, A extends keyof Section
 /**
  * Schema migration utility for handling version updates
  */
-export function migrateFRMData(data: unknown, fromVersion?: string, toVersion = 'v1.0'): FRMData {
+export function migrateFRMData(data: unknown, fromVersion?: string, toVersion = 'v1.0.3'): FRMData {
   if (!isFRMData(data)) {
     throw new Error('Invalid FRMData structure')
   }

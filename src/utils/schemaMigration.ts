@@ -29,7 +29,7 @@ export interface SchemaVersion {
 }
 
 // Current schema version
-const CURRENT_SCHEMA_VERSION = 'v1.0'
+const CURRENT_SCHEMA_VERSION = 'v1.0.3'
 
 // Version detection utilities
 export function detectSchemaVersion(data: unknown): string | null {
@@ -45,6 +45,15 @@ export function detectSchemaVersion(data: unknown): string | null {
   }
 
   // Check for version indicators in the data structure
+  if (frmData.novelty_assurance?.citations && frmData.novelty_assurance.citations.length > 0) {
+    const firstCitation = frmData.novelty_assurance.citations[0]
+    if (typeof firstCitation.authors === 'string' && typeof firstCitation.source === 'string') {
+      return 'v1.0.3' // New Citation structure
+    } else if (Array.isArray(firstCitation.authors)) {
+      return 'v1.0' // Old Citation structure
+    }
+  }
+  
   if (frmData.novelty_assurance?.redundancy_check?.gate_pass !== undefined) {
     return 'v1.0' // This field was added in v1.0
   }
@@ -129,7 +138,77 @@ const migrationSteps: Record<string, MigrationStep[]> = {
     }
   ],
   'v1.0': [
-    // Future migration steps for v1.0 -> v1.1, etc.
+    // Migration step for Citation authors field change (array to string)
+    {
+      version: 'v1.0.1',
+      description: 'Convert Citation authors from array to string format',
+      migrate: (data: any) => {
+        if (data.novelty_assurance?.citations) {
+          data.novelty_assurance.citations = data.novelty_assurance.citations.map((citation: any) => {
+            if (Array.isArray(citation.authors)) {
+              citation.authors = citation.authors.join(', ')
+            }
+            // Add source field if missing
+            if (!citation.source && citation.venue) {
+              citation.source = citation.venue
+            }
+            return citation
+          })
+        }
+        return data
+      },
+      validate: (data: any) => {
+        if (data.novelty_assurance?.citations) {
+          return data.novelty_assurance.citations.every((citation: any) => 
+            typeof citation.authors === 'string' && 
+            typeof citation.source === 'string'
+          )
+        }
+        return true
+      }
+    },
+    // Migration step for symbolic regression algorithm options
+    {
+      version: 'v1.0.2',
+      description: 'Update symbolic regression algorithm options',
+      migrate: (data: any) => {
+        if (data.modeling?.symbolic_regression?.algorithm_type) {
+          const oldValue = data.modeling.symbolic_regression.algorithm_type
+          // Map old values to new ones if needed
+          if (oldValue === 'enumerative' || oldValue === 'LLM_based') {
+            // These are already valid, no change needed
+          }
+        }
+        return data
+      },
+      validate: (data: any) => {
+        if (data.modeling?.symbolic_regression?.algorithm_type) {
+          const validOptions = ['genetic_programming', 'deep_learning', 'enumerative', 'LLM_based', 'hybrid', 'other']
+          return validOptions.includes(data.modeling.symbolic_regression.algorithm_type)
+        }
+        return true
+      }
+    },
+    // Migration step for novelty metrics options
+    {
+      version: 'v1.0.3',
+      description: 'Update novelty metrics options',
+      migrate: (data: any) => {
+        if (data.modeling?.symbolic_regression?.novelty_metrics) {
+          // Remove any invalid metrics and add temporal_novelty if not present
+          const validMetrics = ['cosine_embedding', 'rougeL', 'jaccard_terms', 'nli_contradiction', 'qa_novelty', 'citation_overlap', 'novascore', 'relative_neighbor_density', 'creativity_index', 'temporal_novelty']
+          data.modeling.symbolic_regression.novelty_metrics = data.modeling.symbolic_regression.novelty_metrics.filter((metric: string) => validMetrics.includes(metric))
+        }
+        return data
+      },
+      validate: (data: any) => {
+        if (data.modeling?.symbolic_regression?.novelty_metrics) {
+          const validMetrics = ['cosine_embedding', 'rougeL', 'jaccard_terms', 'nli_contradiction', 'qa_novelty', 'citation_overlap', 'novascore', 'relative_neighbor_density', 'creativity_index', 'temporal_novelty']
+          return data.modeling.symbolic_regression.novelty_metrics.every((metric: string) => validMetrics.includes(metric))
+        }
+        return true
+      }
+    }
   ]
 }
 

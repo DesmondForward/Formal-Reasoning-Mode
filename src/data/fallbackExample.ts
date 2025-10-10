@@ -4,7 +4,7 @@ export const FALLBACK_EXAMPLE: FRMData = {
   metadata: {
     problem_id: 'SEIR_EPIDEMIC_001',
     domain: 'medicine',
-    version: 'v1.0',
+    version: 'v1.0.3',
     notes: 'Reference configuration for an SEIR epidemic model.',
   },
   input: {
@@ -285,24 +285,27 @@ export const FALLBACK_EXAMPLE: FRMData = {
       {
         id: 'CIT001',
         title: 'Mathematical models in epidemiology',
-        authors: ['Kermack, W.O.', 'McKendrick, A.G.'],
+        authors: 'Kermack, W.O., McKendrick, A.G.',
         year: 1927,
+        source: 'Proceedings of the Royal Society of London',
         venue: 'Proceedings of the Royal Society of London',
         doi: '10.1098/rspa.1927.0118'
       },
       {
         id: 'CIT002',
         title: 'A contribution to the mathematical theory of epidemics',
-        authors: ['Kermack, W.O.', 'McKendrick, A.G.'],
+        authors: 'Kermack, W.O., McKendrick, A.G.',
         year: 1932,
+        source: 'Proceedings of the Royal Society of London',
         venue: 'Proceedings of the Royal Society of London',
         doi: '10.1098/rspa.1932.0171'
       },
       {
         id: 'CIT003',
         title: 'Mathematical Epidemiology of Infectious Diseases: Model Building, Analysis and Interpretation',
-        authors: ['Diekmann, O.', 'Heesterbeek, J.A.P.'],
+        authors: 'Diekmann, O., Heesterbeek, J.A.P.',
         year: 2000,
+        source: 'Wiley Series in Mathematical and Computational Biology',
         venue: 'Wiley Series in Mathematical and Computational Biology'
       }
     ],
