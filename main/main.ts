@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { join, dirname } from 'node:path'
 import { existsSync, readFileSync } from 'node:fs'
+import axios from 'axios'
 
 import { callValidateTool } from './mcp/frmMcpServer.js'
 
@@ -139,6 +140,44 @@ const getOpenAIConfig = () => ({
   apiUrl: process.env.OPENAI_API_URL ?? 'https://api.openai.com/v1/responses',
 })
 
+// Helper function to retry requests with exponential backoff
+const retryWithBackoff = async <T>(
+  operation: () => Promise<T>,
+  maxRetries: number = 3,
+  baseDelay: number = 1000
+): Promise<T> => {
+  let lastError: Error
+  
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await operation()
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error))
+      
+      // Don't retry on the last attempt
+      if (attempt === maxRetries) {
+        break
+      }
+      
+      // Don't retry on certain error types
+      const errorMessage = lastError.message.toLowerCase()
+      if (errorMessage.includes('unauthorized') || 
+          errorMessage.includes('forbidden') || 
+          errorMessage.includes('not found') ||
+          errorMessage.includes('invalid api key')) {
+        break
+      }
+      
+      // Calculate delay with exponential backoff
+      const delay = baseDelay * Math.pow(2, attempt)
+      console.log(`Request failed (attempt ${attempt + 1}/${maxRetries + 1}), retrying in ${delay}ms...`)
+      await new Promise(resolve => setTimeout(resolve, delay))
+    }
+  }
+  
+  throw lastError!
+}
+
 const DEFAULT_SYSTEM_PROMPT = `You are an assistant that creates Formal Reasoning Mode (FRM) problem JSON documents.
 Your reply MUST be a single JSON object that strictly matches the FRM schema. Do not wrap the JSON in Markdown fences or add commentary.
 
@@ -148,8 +187,8 @@ Key schema rules:
 • metadata – include problem_id, domain, version. domain must be one of: artificial_intelligence, astrophysics, autonomous_systems, biology, chemical_engineering, chemistry, climate_science, coding, computational_finance, cybersecurity, data_science, economics, energy_systems, engineering, fluid_dynamics, fluid_mechanics, general, geosciences, materials_science, mathematics, medicine, metrology, neuroscience, network_science, physics, public_health, quantum_computing, renewable_energy, robotics, signal_processing, social_science, space_technology, synthetic_biology, systems_biology. Optional novelty_context may contain problem_lineage_note, known_baselines (array of strings), intended_contribution_type (model|equation|method|problem|analysis|dataset|system|other), domains_involved (array of domain enum values).
 • input – provide problem_summary, scope_objective, mechanistic_notes, known_quantities (array of Quantity objects), unknowns (array of Variable objects with at least one entry), and constraints_goals {hard_constraints[], soft_preferences[], objective}. Constraint.type must be "equality" or "inequality"; Objective.sense must be "minimize" or "maximize".
 • modeling – required fields: model_class (ODE|PDE|DAE|SDE|discrete|hybrid), variables (array with ≥1 Variable), equations (array with ≥1 Equation). Optional arrays: initial_conditions, measurement_model, assumptions. interpretability_required is a boolean. symbolic_regression, when provided, must include algorithm_type, function_library array of {name, allowed}, search_strategy, data_description, benchmark_reference, novelty_metrics (array of strings). Every equation id must match ^(E|M|H)[0-9]+$, include lhs, rhs, mechanism_link, novelty_tag (new|variant|borrowed|baseline); prior_art_citations entries must be CitationID strings matching ^C[0-9]+$ and should reference entries in novelty_assurance.citations.
-• method_selection – include problem_type (dynamics|optimization|inference|simulation) and chosen_methods (array ≥1) with objects containing name and justification. Optional fields: prior_art_citations (array of CitationIDs), novelty_tag, novelty_diff, tolerances {absolute, relative}. If search_integration is used, include {enabled, tools_used[], strategy, justification}.
-• solution_and_analysis – include solution_requests (array with values drawn only from ["solve_numeric","solve_analytic","optimize","infer"]). Optional: optimization_problem {objective, constraints[], solver}, inference_problem {prior, likelihood, sampler}, simulation_scenario {initial_state, parameters, inputs, horizon}, narrative_guidance {style (tutorial|formal|conversational), depth (high_level|detailed), purpose (insight|verification|education)}. DO NOT include sensitivity_analysis, uncertainty_propagation, or any other properties not listed here.
+• method_selection – include problem_type (dynamics|optimization|inference|simulation) and chosen_methods (array ≥1) with objects containing name and justification. Optional fields: prior_art_citations (array of CitationIDs), novelty_tag, novelty_diff, tolerances {absolute, relative}. If search_integration is used, include {enabled, tools_used[], strategy, justification}. CRITICAL: method_selection has additionalProperties=false, so NO other properties are allowed beyond these listed ones.
+• solution_and_analysis – include solution_requests (array with values drawn only from ["solve_numeric","solve_analytic","optimize","infer"]). Optional: optimization_problem {objective, constraints[], solver}, inference_problem {prior, likelihood, sampler}, simulation_scenario {initial_state (STRING), parameters (STRING), inputs (STRING), horizon (STRING)}, narrative_guidance {style (tutorial|formal|conversational), depth (high_level|detailed), purpose (insight|verification|education)}. CRITICAL: simulation_scenario properties must be STRINGS, not objects or numbers. DO NOT include sensitivity_analysis, uncertainty_propagation, or any other properties not listed here.
 • validation – must contain unit_consistency_check, mechanism_coverage_check, novelty_gate_pass (set to true), constraint_satisfaction_metrics (array of {name,value,threshold}), fit_quality_metrics (same structure), counterfactual_sanity {enabled, perturb_percent ≥0}. Optional: novelty_checks (with direction lower_is_better|higher_is_better), generalization_checks, scientific_alignment_checks, expert_review {experts array ≥1, summary, interpretability_score}, dynamic_equation_validation.
 • output_contract – sections_required must be an array that contains ALL of the following strings at least once (no extras): "VariablesAndUnitsTable", "ModelEquations", "MethodStatement", "SolutionDerivation", "Analysis", "Conclusion", "References", "Glossary". formatting must be exactly { "math_notation": "latex"|"unicode", "explanation_detail": "terse"|"detailed" } with NO other properties. safety_note must be { "flag": boolean, "content": string } with NO other properties. DO NOT include number_format, significant_figures, novelty_badge, interpretability_requirements, or any other properties not listed here.
 • novelty_assurance – include prior_work {search_queries array ≥1, literature_corpus_summary (≥30 chars), key_papers array of CitationIDs matching ^C[0-9]+$}, citations array ≥3 with objects {id: "C001" style, title, authors (single string), year (number), source (string)}. citation_checks must contain coverage_ratio (0-1), paraphrase_overlap (0-1), coverage_min_threshold (0.5-0.95) and optional conflicts[]. similarity_assessment requires metrics array (≥3) and aggregates {max_similarity, min_novelty_score, passes}; optional self_overlap_ratio, cross_domain_performance. novelty_claims array requires id matching ^NC[0-9]+$, statement ≥20 chars, category (model|equation|method|problem|analysis|dataset|system), evidence_citations (CitationID array ≥1), plus creativity_scores {originality, feasibility, impact, reliability} in [0,1]; include tests when useful. redundancy_check must list rules_applied[], final_decision ("proceed"|"revise"|"reject"), justification (≥20 chars), gate_pass true, optional blocker_reasons, overrides. evidence_tracking requires evidence_map array (each entry with section, citation_ids array, optional claim_id, file_ids, source_type from experimental_data|simulation|benchmark|theoretical) and may include artifacts array with type (graph|table|notebook|code|dataset|other), uri, optional hash. error_handling must include novelty_errors array, missing_evidence_policy ("fail_validation"|"allow_with_warning"), on_fail_action ("reject"|"request_more_search"|"revise"|"defer"). evaluation_dataset is optional but, if present, must follow the schema (name, description, data_scope, anonymization_methods).
@@ -613,6 +652,23 @@ const buildUserPrompt = (options: SchemaGenerationOptions = {}): string => {
     '  ]',
     '}',
     '',
+    'SIMULATION_SCENARIO STRUCTURE REQUIREMENTS (CRITICAL):',
+    '- simulation_scenario must be an object with these optional properties: initial_state, parameters, inputs, horizon',
+    '- ALL properties in simulation_scenario MUST be STRINGS, not objects or numbers',
+    '- initial_state: string (optional) - e.g., "X(0) = 100, Y(0) = 0"',
+    '- parameters: string (optional) - e.g., "k1 = 0.1, k2 = 0.05"',
+    '- inputs: string (optional) - e.g., "u(t) = step function"',
+    '- horizon: string (optional) - e.g., "t = 0 to 100"',
+    '- NO additional properties allowed in simulation_scenario (additionalProperties: false)',
+    '',
+    'EXAMPLE of correct simulation_scenario structure:',
+    '{',
+    '  "initial_state": "X(0) = 100, Y(0) = 0",',
+    '  "parameters": "k1 = 0.1, k2 = 0.05",',
+    '  "inputs": "u(t) = step function",',
+    '  "horizon": "t = 0 to 100"',
+    '}',
+    '',
     'VALIDATION STRUCTURE REQUIREMENTS (CRITICAL):',
     '- validation must be an object with these required properties: unit_consistency_check, mechanism_coverage_check, constraint_satisfaction_metrics, fit_quality_metrics, counterfactual_sanity, novelty_gate_pass, novelty_checks, generalization_checks, scientific_alignment_checks, expert_review',
     '- unit_consistency_check: boolean (REQUIRED)',
@@ -918,6 +974,8 @@ const removeExtraProperties = (obj: unknown): unknown => {
         result[key] = cleanOutputContract(value)
       } else if (key === 'novelty_assurance') {
         result[key] = cleanNoveltyAssurance(value)
+      } else if (key === 'method_selection') {
+        result[key] = cleanMethodSelection(value)
       } else {
         result[key] = value
       }
@@ -947,7 +1005,11 @@ const cleanSolutionAndAnalysis = (obj: unknown): unknown => {
 
   for (const [key, value] of Object.entries(objRecord)) {
     if (allowedProperties.has(key)) {
-      result[key] = value
+      if (key === 'simulation_scenario') {
+        result[key] = cleanSimulationScenario(value)
+      } else {
+        result[key] = value
+      }
     }
   }
 
@@ -1091,6 +1153,67 @@ const cleanNoveltyAssurance = (obj: unknown): unknown => {
   return result
 }
 
+// Clean method_selection to only include allowed properties
+const cleanMethodSelection = (obj: unknown): unknown => {
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) {
+    return obj
+  }
+
+  const result: Record<string, unknown> = {}
+  const objRecord = obj as Record<string, unknown>
+
+  // Allowed properties for method_selection
+  const allowedProperties = new Set([
+    'problem_type',
+    'chosen_methods',
+    'search_integration'
+  ])
+
+  for (const [key, value] of Object.entries(objRecord)) {
+    if (allowedProperties.has(key)) {
+      result[key] = value
+    }
+  }
+
+  return result
+}
+
+// Clean simulation_scenario to ensure all properties are strings
+const cleanSimulationScenario = (obj: unknown): unknown => {
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) {
+    return obj
+  }
+
+  const result: Record<string, unknown> = {}
+  const objRecord = obj as Record<string, unknown>
+
+  // Allowed properties for simulation_scenario
+  const allowedProperties = new Set([
+    'initial_state',
+    'parameters',
+    'inputs',
+    'horizon'
+  ])
+
+  for (const [key, value] of Object.entries(objRecord)) {
+    if (allowedProperties.has(key)) {
+      // Ensure all values are strings
+      if (typeof value === 'string') {
+        result[key] = value
+      } else if (typeof value === 'number') {
+        result[key] = value.toString()
+      } else if (typeof value === 'object' && value !== null) {
+        // Convert objects to JSON strings
+        result[key] = JSON.stringify(value)
+      } else {
+        result[key] = String(value)
+      }
+    }
+  }
+
+  return result
+}
+
 const pingLLM = async () => {
   const { apiKey, model, apiUrl } = getOpenAIConfig()
 
@@ -1110,29 +1233,29 @@ const pingLLM = async () => {
   startCommunicationTracking('FRM', 'GPT-5', 'Ping LLM', { model })
 
   try {
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
+    const response = await retryWithBackoff(async () => {
+      return await axios.post(apiUrl, {
         model,
         input: [
           { role: 'user', content: 'Ping - respond with "OK" to confirm connection.' },
         ],
         max_output_tokens: 100,
-      }),
-    })
+      }, {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        timeout: 30000, // 30 seconds timeout for ping
+      })
+    }, 1, 1000) // 1 retry with 1 second base delay
 
-    if (!response.ok) {
-      const errorBody = await response.text()
-      const error = new Error(`LLM ping failed (${response.status}): ${errorBody}`)
-      endCommunicationTracking('FRM', 'GPT-5', 'Ping failed', { status: response.status, error: errorBody }, true)
+    if (response.status !== 200) {
+      const error = new Error(`LLM ping failed (${response.status}): ${response.statusText}`)
+      endCommunicationTracking('FRM', 'GPT-5', 'Ping failed', { status: response.status, error: response.statusText }, true)
       throw error
     }
 
-    const payload: any = await response.json()
+    const payload: any = response.data
     const responseText = extractResponseText(payload)
 
     endCommunicationTracking('FRM', 'GPT-5', 'Ping successful', { 
@@ -1147,9 +1270,18 @@ const pingLLM = async () => {
       timestamp: new Date().toISOString()
     }
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    const isTimeout = errorMessage.includes('timeout') || errorMessage.includes('HeadersTimeoutError') || errorMessage.includes('AbortError')
+    
     endCommunicationTracking('FRM', 'GPT-5', 'Ping error', { 
-      error: error instanceof Error ? error.message : 'Unknown error' 
+      error: errorMessage,
+      isTimeout
     }, true)
+    
+    if (isTimeout) {
+      throw new Error(`Ping request timed out after 30 seconds. Please check your network connection and try again.`)
+    }
+    
     throw error
   }
 }
@@ -1173,13 +1305,8 @@ const generateAISchema = async (options: SchemaGenerationOptions = {}) => {
   startCommunicationTracking('FRM', 'GPT-5', 'Generate AI schema', { options, model })
 
   try {
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
+    const response = await retryWithBackoff(async () => {
+      return await axios.post(apiUrl, {
         model,
         input: [
           { role: 'system', content: DEFAULT_SYSTEM_PROMPT },
@@ -1191,20 +1318,25 @@ const generateAISchema = async (options: SchemaGenerationOptions = {}) => {
           },
         },
         reasoning: {
-          effort: 'low',
+          effort: 'high',
         },
         max_output_tokens: 200000,
-      }),
-    })
+      }, {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        timeout: 2700000, // 45 minutes timeout (45 * 60 * 1000)
+      })
+    }, 2, 2000) // 2 retries with 2 second base delay
 
-    if (!response.ok) {
-      const errorBody = await response.text()
-      const error = new Error(`OpenAI request failed (${response.status}): ${errorBody}`)
-      endCommunicationTracking('FRM', 'GPT-5', 'Request failed', { status: response.status, error: errorBody }, true)
+    if (response.status !== 200) {
+      const error = new Error(`OpenAI request failed (${response.status}): ${response.statusText}`)
+      endCommunicationTracking('FRM', 'GPT-5', 'Request failed', { status: response.status, error: response.statusText }, true)
       throw error
     }
 
-    const payload: any = await response.json()
+    const payload: any = response.data
 
     if (payload?.incomplete_details?.reason) {
       const error = new Error(`OpenAI response was incomplete: ${payload.incomplete_details.reason}`)
@@ -1270,7 +1402,17 @@ const generateAISchema = async (options: SchemaGenerationOptions = {}) => {
   } catch (error) {
     // Ensure we end tracking even on error
     if (communicationStartTime) {
-      endCommunicationTracking('FRM', 'GPT-5', 'Generation failed', { error: error instanceof Error ? error.message : 'Unknown error' }, true)
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      const isTimeout = errorMessage.includes('timeout') || errorMessage.includes('HeadersTimeoutError') || errorMessage.includes('AbortError')
+      
+      endCommunicationTracking('FRM', 'GPT-5', 'Generation failed', { 
+        error: errorMessage,
+        isTimeout
+      }, true)
+      
+      if (isTimeout) {
+        throw new Error(`Request timed out after 45 minutes. The AI model may be experiencing high load. Please try again later.`)
+      }
     }
     throw error
   }
