@@ -315,6 +315,6 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 
 **Built with ❤️ for the future of mathematical modeling and AI reasoning**
 
-[⭐ Star this repo](https://github.com/your-username/formal-reasoning-mode) • [🐛 Report a bug](https://github.com/your-username/formal-reasoning-mode/issues) • [💡 Request a feature](https://github.com/your-username/formal-reasoning-mode/issues)
+[⭐ Star this repo](https://github.com/DesmondForward/formal-reasoning-mode) • [🐛 Report a bug](https://github.com/DesmondForward/formal-reasoning-mode/issues) • [💡 Request a feature](https://github.com/DesmondForward/formal-reasoning-mode/issues)
 
 </div>
