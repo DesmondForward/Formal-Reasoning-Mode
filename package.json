@@ -6,7 +6,7 @@
   "type": "module",
   "homepage": "./",
   "scripts": {
-    "dev": "concurrently \"npm run dev:renderer\" \"npm run dev:main\" --kill-others-on-fail",
+    "dev": "cross-env NODE_OPTIONS=\"--no-deprecation\" concurrently \"npm run dev:renderer\" \"npm run dev:main\" --kill-others-on-fail",
     "dev:renderer": "vite",
     "dev:main": "cross-env VITE_DEV_SERVER_URL=http://localhost:3000 tsc -p tsconfig.main.json && electron dist/main.js",
     "build": "npm run build:renderer && npm run build:main",
@@ -41,7 +41,7 @@
     "autoprefixer": "^10.4.21",
     "concurrently": "^8.2.2",
     "cross-env": "^10.1.0",
-    "electron": "^38.1.2",
+    "electron": "^38.3.0",
     "electron-builder": "^24.9.1",
     "eslint": "^8.55.0",
     "eslint-plugin-react": "^7.33.2",

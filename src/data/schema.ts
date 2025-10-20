@@ -552,6 +552,17 @@ export interface EvaluationDataset {
   anonymization_methods?: string
 }
 
+export interface SensitivityAnalysis {
+  type: string
+  parameters: string[]
+  perturbation_fraction: number
+}
+
+export interface UncertaintyPropagation {
+  method: string
+  n_samples: number
+}
+
 // -----------------------------------------------------------------------------
 // Core interface definitions
 
@@ -694,6 +705,8 @@ export interface FRMData {
       depth: 'high_level' | 'detailed'
       purpose: 'insight' | 'verification' | 'education'
     }
+    sensitivity_analysis?: SensitivityAnalysis
+    uncertainty_propagation?: UncertaintyPropagation
   }
   validation: {
     unit_consistency_check: boolean
@@ -730,6 +743,8 @@ export interface FRMData {
     formatting: {
       math_notation: 'latex' | 'unicode'
       explanation_detail: 'terse' | 'detailed'
+      number_format?: string
+      significant_figures?: number
     }
     safety_note: {
       flag: boolean

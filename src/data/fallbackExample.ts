@@ -392,6 +392,11 @@ export const FALLBACK_EXAMPLE: FRMData = {
       'VariablesAndUnitsTable',
       'ModelEquations',
       'MethodStatement',
+      'SolutionDerivation',
+      'Analysis',
+      'Conclusion',
+      'References',
+      'Glossary',
       'Results',
       'Validation',
       'ActionableRecommendation',
@@ -402,11 +407,14 @@ export const FALLBACK_EXAMPLE: FRMData = {
       'Evidence & Citations',
     ],
     formatting: {
-      math_notation: 'LaTeX',
+      math_notation: 'latex',
+      explanation_detail: 'detailed',
       number_format: 'scientific',
       significant_figures: 4,
     },
-    safety_note:
-      'Mechanistic model intended for research and scenario planning. Not for direct clinical decision making.',
+    safety_note: {
+      flag: false,
+      content: 'Mechanistic model intended for research and scenario planning. Not for direct clinical decision making.',
+    },
   },
 }

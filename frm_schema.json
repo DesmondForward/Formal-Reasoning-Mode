@@ -589,6 +589,38 @@
               ]
             }
           }
+        },
+        "sensitivity_analysis": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "type": "string"
+            },
+            "parameters": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "perturbation_fraction": {
+              "type": "number"
+            }
+          },
+          "description": "Sensitivity analysis configuration for parameter perturbation studies."
+        },
+        "uncertainty_propagation": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "method": {
+              "type": "string"
+            },
+            "n_samples": {
+              "type": "number"
+            }
+          },
+          "description": "Uncertainty propagation configuration for quantifying parameter uncertainty effects."
         }
       }
     },
@@ -917,7 +949,15 @@
               "Analysis",
               "Conclusion",
               "References",
-              "Glossary"
+              "Glossary",
+              "Results",
+              "Validation",
+              "ActionableRecommendation",
+              "RefinementHooks",
+              "Novelty Statement",
+              "Prior Work Comparison",
+              "Redundancy Check",
+              "Evidence & Citations"
             ]
           }
         },
@@ -942,6 +982,15 @@
                 "terse",
                 "detailed"
               ]
+            },
+            "number_format": {
+              "type": "string",
+              "description": "Number formatting style (e.g., 'scientific', 'decimal', 'engineering')."
+            },
+            "significant_figures": {
+              "type": "number",
+              "minimum": 1,
+              "description": "Number of significant figures for numerical output."
             }
           }
         },
@@ -1813,7 +1862,7 @@
       "properties": {
         "id": {
           "type": "string",
-          "pattern": "^C[0-9]+$"
+          "pattern": "^CIT[0-9]+$"
         },
         "title": {
           "type": "string"
@@ -1840,7 +1889,7 @@
     },
     "CitationID": {
       "type": "string",
-      "pattern": "^C[0-9]+$"
+      "pattern": "^CIT[0-9]+$"
     },
     "SimilarityMetric": {
       "type": "object",
