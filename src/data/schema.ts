@@ -375,6 +375,34 @@ export const SOURCE_TYPE_OPTIONS = [
 ] as const
 export type SourceTypeOption = typeof SOURCE_TYPE_OPTIONS[number]
 
+// Output contract related option lists
+export const OUTPUT_SECTION_OPTIONS = [
+  'VariablesAndUnitsTable',
+  'ModelEquations',
+  'MethodStatement',
+  'SolutionDerivation',
+  'Analysis',
+  'Conclusion',
+  'References',
+  'Glossary',
+  // Additional sections present in frm_schema.json
+  'Results',
+  'Validation',
+  'ActionableRecommendation',
+  'RefinementHooks',
+  'Novelty Statement',
+  'Prior Work Comparison',
+  'Redundancy Check',
+  'Evidence & Citations',
+] as const
+export type OutputSectionOption = typeof OUTPUT_SECTION_OPTIONS[number]
+
+export const MATH_NOTATION_OPTIONS = ['latex', 'unicode'] as const
+export type MathNotationOption = typeof MATH_NOTATION_OPTIONS[number]
+
+export const EXPLANATION_DETAIL_OPTIONS = ['terse', 'detailed'] as const
+export type ExplanationDetailOption = typeof EXPLANATION_DETAIL_OPTIONS[number]
+
 // -----------------------------------------------------------------------------
 // Type definitions for individual components
 export interface Quantity {
@@ -739,10 +767,10 @@ export interface FRMData {
     expert_review?: ExpertReview
   }
   output_contract: {
-    sections_required: string[]
+    sections_required: OutputSectionOption[]
     formatting: {
-      math_notation: 'latex' | 'unicode'
-      explanation_detail: 'terse' | 'detailed'
+      math_notation: MathNotationOption
+      explanation_detail: ExplanationDetailOption
       number_format?: string
       significant_figures?: number
     }

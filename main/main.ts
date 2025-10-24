@@ -10,8 +10,8 @@ import { callValidateTool } from './mcp/frmMcpServer.js'
 interface CommunicationEvent {
   id: string
   timestamp: Date
-  source: 'FRM' | 'MCP' | 'GPT-5'
-  target: 'FRM' | 'MCP' | 'GPT-5'
+  source: 'FRM' | 'MCP' | 'GPT-5' | string
+  target: 'FRM' | 'MCP' | 'GPT-5' | string
   type: 'request' | 'response' | 'error' | 'info'
   message: string
   data?: any
@@ -36,7 +36,7 @@ const sendCommunicationEvent = (event: Omit<CommunicationEvent, 'id' | 'timestam
   }
 }
 
-const startCommunicationTracking = (source: 'FRM' | 'MCP' | 'GPT-5', target: 'FRM' | 'MCP' | 'GPT-5', message: string, data?: any) => {
+const startCommunicationTracking = (source: 'FRM' | 'MCP' | 'GPT-5' | string, target: 'FRM' | 'MCP' | 'GPT-5' | string, message: string, data?: any) => {
   communicationStartTime = Date.now()
   sendCommunicationEvent({
     source,
@@ -47,7 +47,7 @@ const startCommunicationTracking = (source: 'FRM' | 'MCP' | 'GPT-5', target: 'FR
   })
 }
 
-const endCommunicationTracking = (source: 'FRM' | 'MCP' | 'GPT-5', target: 'FRM' | 'MCP' | 'GPT-5', message: string, data?: any, isError = false) => {
+const endCommunicationTracking = (source: 'FRM' | 'MCP' | 'GPT-5' | string, target: 'FRM' | 'MCP' | 'GPT-5' | string, message: string, data?: any, isError = false) => {
   const duration = communicationStartTime ? Date.now() - communicationStartTime : undefined
   communicationStartTime = null
   
@@ -134,11 +134,177 @@ const loadEnvIfPresent = () => {
 
 loadEnvIfPresent()
 
-const getOpenAIConfig = () => ({
-  apiKey: process.env.OPENAI_API_KEY,
-  model: process.env.OPENAI_MODEL ?? 'gpt-5-2025-08-07',
-  apiUrl: process.env.OPENAI_API_URL ?? 'https://api.openai.com/v1/responses',
+const getOpenAIConfig = () => {
+  const model = process.env.OPENAI_MODEL ?? 'gpt-5-2025-08-07'
+  
+  // Model-specific endpoint selection (ignores OPENAI_API_URL for GPT-5 models)
+  const getApiUrl = (model: string) => {
+    // GPT-5 Pro models use /v1/responses endpoint
+    if (model.includes('gpt-5-pro')) {
+      return 'https://api.openai.com/v1/responses'
+    }
+    // Other GPT-5 models use /v1/chat/completions
+    if (model.includes('gpt-5')) {
+      return 'https://api.openai.com/v1/chat/completions'
+    }
+    // Default to standard chat completions endpoint
+    return process.env.OPENAI_API_URL ?? 'https://api.openai.com/v1/chat/completions'
+  }
+  
+  const apiUrl = getApiUrl(model)
+  
+  const config = {
+    apiKey: process.env.OPENAI_API_KEY,
+    model: model,
+    apiUrl: apiUrl,
+  }
+  
+  // Debug logging
+  console.log('OpenAI Config:', {
+    model: config.model,
+    apiUrl: config.apiUrl,
+    hasApiKey: !!config.apiKey,
+    envOpenAIUrl: process.env.OPENAI_API_URL,
+    isGpt5: model.includes('gpt-5'),
+    isGpt5Pro: model.includes('gpt-5-pro'),
+    endpointType: model.includes('gpt-5-pro') ? 'responses' : model.includes('gpt-5') ? 'chat/completions' : 'default'
+  })
+  
+  return config
+}
+
+const getGoogleConfig = () => ({
+  apiKey: process.env.GOOGLE_API_KEY,
+  model: process.env.GOOGLE_MODEL ?? 'gemini-2.5-pro',
+  apiUrl: process.env.GOOGLE_API_URL ?? 'https://generativelanguage.googleapis.com/v1beta/models',
 })
+
+const getAnthropicConfig = () => ({
+  apiKey: process.env.ANTHROPIC_API_KEY,
+  model: process.env.ANTHROPIC_MODEL ?? 'claude-3-5-sonnet-20241022',
+  apiUrl: process.env.ANTHROPIC_API_URL ?? 'https://api.anthropic.com/v1/messages',
+})
+
+// Get the active AI provider configuration
+const getAIConfig = () => {
+  const provider = process.env.AI_PROVIDER ?? 'openai'
+  
+  switch (provider.toLowerCase()) {
+    case 'google':
+      return getGoogleConfig()
+    case 'anthropic':
+      return getAnthropicConfig()
+    case 'openai':
+    default:
+      return getOpenAIConfig()
+  }
+}
+
+// Helper function to get the correct API URL for OpenAI models
+const getOpenAIUrl = (model: string) => {
+  // GPT-5 Pro models use /v1/responses endpoint
+  if (model.includes('gpt-5-pro')) {
+    return 'https://api.openai.com/v1/responses'
+  }
+  // Other GPT-5 models use /v1/chat/completions
+  if (model.includes('gpt-5')) {
+    return 'https://api.openai.com/v1/chat/completions'
+  }
+  // Default to standard chat completions endpoint
+  return process.env.OPENAI_API_URL ?? 'https://api.openai.com/v1/chat/completions'
+}
+
+// Format request based on AI provider
+const formatAIRequest = (provider: string, model: string, messages: any[], options: any) => {
+  const baseUrl = provider.toLowerCase() === 'google' 
+    ? `${process.env.GOOGLE_API_URL ?? 'https://generativelanguage.googleapis.com/v1beta'}/models/${model}:generateContent`
+    : provider.toLowerCase() === 'anthropic'
+    ? process.env.ANTHROPIC_API_URL ?? 'https://api.anthropic.com/v1/messages'
+    : getOpenAIUrl(model)
+
+  switch (provider.toLowerCase()) {
+    case 'google':
+      const systemMessage = messages.find(m => m.role === 'system')?.content || ''
+      const userMessage = messages.find(m => m.role === 'user')?.content || ''
+      
+      return {
+        url: baseUrl,
+        data: {
+          contents: [{
+            parts: [{
+              text: systemMessage ? `${systemMessage}\n\n${userMessage}` : userMessage
+            }]
+          }],
+          generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: 128000,
+            responseMimeType: "application/json"
+          }
+        },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': process.env.GOOGLE_API_KEY
+        }
+      }
+    case 'anthropic':
+      return {
+        url: baseUrl,
+        data: {
+          model,
+          max_tokens: 128000,
+          messages: messages,
+          system: messages.find(m => m.role === 'system')?.content || DEFAULT_SYSTEM_PROMPT
+        },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': process.env.ANTHROPIC_API_KEY,
+          'anthropic-version': '2023-06-01'
+        }
+      }
+    case 'openai':
+    default:
+      // Check if this is GPT-5 Pro (uses /v1/responses endpoint)
+      const isGpt5Pro = model.includes('gpt-5-pro')
+      
+      if (isGpt5Pro) {
+        // GPT-5 Pro uses different parameter structure for /v1/responses
+        return {
+          url: baseUrl,
+          data: {
+            model,
+            input: messages,
+            max_output_tokens: options?.max_tokens || 272000,
+            text: {
+              format: {
+                type: 'json_object'
+              }
+            },
+          },
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
+          }
+        }
+      } else {
+        // Standard OpenAI models use /v1/chat/completions
+        return {
+          url: baseUrl,
+          data: {
+            model,
+            messages: messages,
+            max_completion_tokens: options?.max_tokens || 128000,
+            response_format: {
+              type: 'json_object',
+            },
+          },
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
+          }
+        }
+      }
+  }
+}
 
 // Helper function to retry requests with exponential backoff
 const retryWithBackoff = async <T>(
@@ -338,9 +504,9 @@ General constraints:
       "key_papers": ["CIT001", "CIT002", "CIT003"]
     },
     "citations": [
-      {"id": "CIT001", "title": "Paper 1", "authors": ["Author A"], "year": 2023},
-      {"id": "CIT002", "title": "Paper 2", "authors": ["Author B"], "year": 2022},
-      {"id": "CIT003", "title": "Paper 3", "authors": ["Author C"], "year": 2021}
+      {"id": "CIT001", "title": "Paper 1", "authors": "Author A", "year": 2023, "source": "Journal of Medicine"},
+      {"id": "CIT002", "title": "Paper 2", "authors": "Author B", "year": 2022, "source": "Medical Research Quarterly"},
+      {"id": "CIT003", "title": "Paper 3", "authors": "Author C", "year": 2021, "source": "Clinical Science Review"}
     ],
     "citation_checks": {
       "coverage_ratio": 0.8,
@@ -461,6 +627,8 @@ const buildUserPrompt = (options: SchemaGenerationOptions = {}): string => {
     '- The "output_contract.formatting" object MUST include: math_notation, number_format, significant_figures, novelty_badge',
     '- CRITICAL: output_contract.formatting.number_format MUST be exactly one of: "fixed", "scientific", "auto" (NO other values allowed)',
     '- The "novelty_assurance" section MUST include ALL fields: prior_work, citations, citation_checks, similarity_assessment, novelty_claims, redundancy_check, evidence_tracking, error_handling, evaluation_dataset',
+    '- CRITICAL: error_handling.missing_evidence_policy MUST be exactly one of: "fail_validation", "allow_with_warning" (NO other values allowed)',
+    '- CRITICAL: error_handling.on_fail_action MUST be exactly one of: "reject", "request_more_search", "revise", "defer" (NO other values allowed)',
     '- CRITICAL: evidence_tracking.artifacts[].type MUST be exactly one of: "graph", "table", "notebook", "code", "dataset", "other" (NO other values allowed)',
     '- CRITICAL: evidence_tracking.evidence_map[].source_type MUST be exactly one of: "experimental_data", "simulation", "benchmark", "theoretical" (NO other values allowed)',
     '- The "solution_and_analysis" section MUST include ALL fields: solution_requests, sensitivity_analysis, uncertainty_propagation, optimization_problem, inference_problem',
@@ -900,6 +1068,11 @@ const extractResponseText = (payload: any): string => {
     throw new Error('OpenAI responded with an empty payload.')
   }
 
+  // Handle GPT-5 Pro /v1/responses format
+  if (typeof payload.text === 'string') {
+    return payload.text
+  }
+
   if (typeof payload.output_text === 'string') {
     return payload.output_text
   }
@@ -920,6 +1093,7 @@ const extractResponseText = (payload: any): string => {
     }
   }
 
+  // Handle standard OpenAI /v1/chat/completions format
   if (Array.isArray(payload.choices)) {
     for (const choice of payload.choices) {
       if (typeof choice?.text === 'string') {
@@ -940,6 +1114,16 @@ const extractResponseText = (payload: any): string => {
   if (typeof payload === 'string') {
     return payload
   }
+
+  // Log the payload structure for debugging
+  console.error('Unable to extract text from OpenAI response. Payload structure:', {
+    keys: Object.keys(payload),
+    hasText: 'text' in payload,
+    hasOutput: 'output' in payload,
+    hasChoices: 'choices' in payload,
+    textType: typeof payload.text,
+    outputType: typeof payload.output
+  })
 
   throw new Error('Unable to extract text from OpenAI response.')
 }
@@ -1215,13 +1399,14 @@ const cleanSimulationScenario = (obj: unknown): unknown => {
 }
 
 const pingLLM = async () => {
-  const { apiKey, model, apiUrl } = getOpenAIConfig()
+  const { apiKey, model, apiUrl } = getAIConfig()
+  const provider = process.env.AI_PROVIDER ?? 'openai'
 
   if (!apiKey) {
-    const error = new Error('OPENAI_API_KEY is not set. Provide a valid key to enable LLM ping.')
+    const error = new Error(`${provider.toUpperCase()}_API_KEY is not set. Provide a valid key to enable LLM ping.`)
     sendCommunicationEvent({
       source: 'FRM',
-      target: 'GPT-5',
+      target: model,
       type: 'error',
       message: 'API key not configured for ping',
       data: { error: error.message }
@@ -1229,36 +1414,66 @@ const pingLLM = async () => {
     throw error
   }
 
-  // Track ping request to GPT-5
-  startCommunicationTracking('FRM', 'GPT-5', 'Ping LLM', { model })
+  // Track ping request to the selected AI model
+  startCommunicationTracking('FRM', model, 'Ping LLM', { model })
 
   try {
+    const messages = [
+      { role: 'user', content: 'Ping - respond with "OK" to confirm connection.' },
+    ]
+    
+    const requestConfig = formatAIRequest(provider, model, messages, { max_tokens: 10 })
+    
+    // Override URL with the correct model-specific endpoint from getAIConfig
+    requestConfig.url = apiUrl
+    
+    // For ping, we don't need JSON response format
+    if (provider.toLowerCase() === 'openai') {
+      requestConfig.data.response_format = undefined
+    }
+    
+    // Debug logging
+    console.log('Ping request config:', {
+      url: requestConfig.url,
+      data: requestConfig.data,
+      headers: { ...requestConfig.headers, 'Authorization': 'Bearer [REDACTED]' }
+    })
+    
     const response = await retryWithBackoff(async () => {
-      return await axios.post(apiUrl, {
-        model,
-        input: [
-          { role: 'user', content: 'Ping - respond with "OK" to confirm connection.' },
-        ],
-        max_output_tokens: 100,
-      }, {
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
-        },
+      return await axios.post(requestConfig.url, requestConfig.data, {
+        headers: requestConfig.headers,
         timeout: 30000, // 30 seconds timeout for ping
       })
     }, 1, 1000) // 1 retry with 1 second base delay
 
     if (response.status !== 200) {
       const error = new Error(`LLM ping failed (${response.status}): ${response.statusText}`)
-      endCommunicationTracking('FRM', 'GPT-5', 'Ping failed', { status: response.status, error: response.statusText }, true)
+      endCommunicationTracking('FRM', model, 'Ping failed', { status: response.status, error: response.statusText }, true)
       throw error
     }
 
     const payload: any = response.data
-    const responseText = extractResponseText(payload)
+    
+    // Handle different response formats based on provider
+    let responseText = ''
+    if (provider.toLowerCase() === 'google') {
+      responseText = payload?.candidates?.[0]?.content?.parts?.[0]?.text || ''
+    } else if (provider.toLowerCase() === 'anthropic') {
+      responseText = payload?.content?.[0]?.text || ''
+    } else {
+      // OpenAI format - handle both old and new API formats
+      const isGpt5Pro = model.includes('gpt-5-pro')
+      
+      if (isGpt5Pro) {
+        // GPT-5 Pro uses /v1/responses endpoint with different structure
+        responseText = extractResponseText(payload)
+      } else {
+        // Standard OpenAI models use /v1/chat/completions
+        responseText = payload?.choices?.[0]?.message?.content || ''
+      }
+    }
 
-    endCommunicationTracking('FRM', 'GPT-5', 'Ping successful', { 
+    endCommunicationTracking('FRM', model, 'Ping successful', { 
       response: responseText.trim(),
       model 
     })
@@ -1273,7 +1488,18 @@ const pingLLM = async () => {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     const isTimeout = errorMessage.includes('timeout') || errorMessage.includes('HeadersTimeoutError') || errorMessage.includes('AbortError')
     
-    endCommunicationTracking('FRM', 'GPT-5', 'Ping error', { 
+    // Enhanced error logging
+    if (error && typeof error === 'object' && 'response' in error) {
+      const axiosError = error as any
+      console.error('Ping error response:', {
+        status: axiosError.response?.status,
+        statusText: axiosError.response?.statusText,
+        data: axiosError.response?.data,
+        headers: axiosError.response?.headers
+      })
+    }
+    
+    endCommunicationTracking('FRM', model, 'Ping error', { 
       error: errorMessage,
       isTimeout
     }, true)
@@ -1282,18 +1508,91 @@ const pingLLM = async () => {
       throw new Error(`Ping request timed out after 30 seconds. Please check your network connection and try again.`)
     }
     
+    // If the error is a 400 and we're using gpt-5-nano, try with gpt-4o as fallback
+    if (error && typeof error === 'object' && 'response' in error) {
+      const axiosError = error as any
+      if (axiosError.response?.status === 400 && model.includes('gpt-5-nano')) {
+        console.log('GPT-5-nano failed, trying with gpt-4o as fallback...')
+        try {
+          const fallbackRequest = {
+            url: 'https://api.openai.com/v1/chat/completions',
+            data: {
+              model: 'gpt-4o',
+              messages: [{ role: 'user', content: 'Ping - respond with "OK" to confirm connection.' }],
+              max_tokens: 10
+            },
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
+            }
+          }
+          
+          const fallbackResponse = await axios.post(fallbackRequest.url, fallbackRequest.data, {
+            headers: fallbackRequest.headers,
+            timeout: 30000
+          })
+          
+          if (fallbackResponse.status === 200) {
+            const fallbackText = fallbackResponse.data?.choices?.[0]?.message?.content || ''
+            endCommunicationTracking('FRM', 'gpt-4o', 'Ping successful (fallback)', { 
+              response: fallbackText.trim(),
+              originalModel: model
+            })
+            
+            return {
+              success: true,
+              response: fallbackText.trim(),
+              model: 'gpt-4o',
+              originalModel: model,
+              timestamp: new Date().toISOString()
+            }
+          }
+        } catch (fallbackError) {
+          console.error('Fallback also failed:', fallbackError)
+        }
+      }
+    }
+    
     throw error
   }
 }
 
 const generateAISchema = async (options: SchemaGenerationOptions = {}) => {
-  const { apiKey, model, apiUrl } = getOpenAIConfig()
+  const fs = await import('fs')
+  const path = await import('path')
+  
+  const logToFile = (message: string, data?: any) => {
+    const logMessage = `${new Date().toISOString()}: ${message}${data ? ' ' + JSON.stringify(data, null, 2) : ''}\n`
+    const logPath = path.default.join(process.cwd(), 'debug.log')
+    console.log('Writing to debug log:', logPath)
+    fs.default.appendFileSync(logPath, logMessage)
+    console.log(message, data)
+  }
+  
+  // Clear debug.log at the start of each generation
+  const logPath = path.default.join(process.cwd(), 'debug.log')
+  try {
+    fs.default.writeFileSync(logPath, '')
+    console.log('Debug log cleared for new generation')
+  } catch (error) {
+    console.error('Failed to clear debug log:', error)
+  }
+  
+  logToFile('=== SCHEMA GENERATION START ===')
+  logToFile('Options:', options)
+  
+  const { apiKey, model, apiUrl } = getAIConfig()
+  const provider = process.env.AI_PROVIDER ?? 'openai'
+  
+  logToFile('Provider:', provider)
+  logToFile('Model:', model)
+  logToFile('API URL:', apiUrl)
 
   if (!apiKey) {
-    const error = new Error('OPENAI_API_KEY is not set. Provide a valid key to enable AI example generation.')
+    const error = new Error(`${provider.toUpperCase()}_API_KEY is not set. Provide a valid key to enable AI example generation.`)
     sendCommunicationEvent({
       source: 'FRM',
-      target: 'GPT-5',
+      target: model,
       type: 'error',
       message: 'API key not configured',
       data: { error: error.message }
@@ -1301,70 +1600,102 @@ const generateAISchema = async (options: SchemaGenerationOptions = {}) => {
     throw error
   }
 
-  // Track request to GPT-5
-  startCommunicationTracking('FRM', 'GPT-5', 'Generate AI schema', { options, model })
+  // Track request to the selected AI model
+  startCommunicationTracking('FRM', model, 'Generate AI schema', { options, model })
 
   try {
+    const messages = [
+      { role: 'system', content: DEFAULT_SYSTEM_PROMPT },
+      { role: 'user', content: buildUserPrompt(options) },
+    ]
+    
+    const requestConfig = formatAIRequest(provider, model, messages, options)
+    
+    // Debug logging for schema generation
+    logToFile('Schema generation request config:', {
+      url: requestConfig.url,
+      data: requestConfig.data,
+      headers: { ...requestConfig.headers, 'Authorization': 'Bearer [REDACTED]' }
+    })
+    
+    logToFile('=== MAKING AXIOS REQUEST ===')
+    logToFile('URL:', requestConfig.url)
+    logToFile('Data keys:', Object.keys(requestConfig.data))
+    logToFile('Headers keys:', Object.keys(requestConfig.headers))
+    
     const response = await retryWithBackoff(async () => {
-      return await axios.post(apiUrl, {
-        model,
-        input: [
-          { role: 'system', content: DEFAULT_SYSTEM_PROMPT },
-          { role: 'user', content: buildUserPrompt(options) },
-        ],
-        text: {
-          format: {
-            type: 'json_object',
-          },
-        },
-        reasoning: {
-          effort: 'high',
-        },
-        max_output_tokens: 200000,
-      }, {
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
-        },
+      logToFile('Making axios request...')
+      return await axios.post(requestConfig.url, requestConfig.data, {
+        headers: requestConfig.headers,
         timeout: 2700000, // 45 minutes timeout (45 * 60 * 1000)
       })
     }, 2, 2000) // 2 retries with 2 second base delay
+    
+    logToFile('=== AXIOS RESPONSE ===')
+    logToFile('Status:', response.status)
+    logToFile('Response data keys:', Object.keys(response.data || {}))
 
     if (response.status !== 200) {
-      const error = new Error(`OpenAI request failed (${response.status}): ${response.statusText}`)
-      endCommunicationTracking('FRM', 'GPT-5', 'Request failed', { status: response.status, error: response.statusText }, true)
+      const error = new Error(`${provider.toUpperCase()} request failed (${response.status}): ${response.statusText}`)
+      endCommunicationTracking('FRM', model, 'Request failed', { status: response.status, error: response.statusText }, true)
       throw error
     }
 
     const payload: any = response.data
 
-    if (payload?.incomplete_details?.reason) {
-      const error = new Error(`OpenAI response was incomplete: ${payload.incomplete_details.reason}`)
-      endCommunicationTracking('FRM', 'GPT-5', 'Response incomplete', { reason: payload.incomplete_details.reason }, true)
-      throw error
-    }
-
-    if (Array.isArray(payload?.output)) {
-      const truncatedSegment = payload.output.find((segment: any) =>
-        segment && typeof segment.status === 'string' && segment.status !== 'completed',
-      )
-
-      if (truncatedSegment) {
-        const error = new Error('OpenAI response was truncated before completion.')
-        endCommunicationTracking('FRM', 'GPT-5', 'Response truncated', { status: truncatedSegment.status }, true)
-        throw error
+    // Handle different response formats based on provider
+    let responseText = ''
+    if (provider.toLowerCase() === 'google') {
+      responseText = payload?.candidates?.[0]?.content?.parts?.[0]?.text || ''
+    } else if (provider.toLowerCase() === 'anthropic') {
+      responseText = payload?.content?.[0]?.text || ''
+    } else {
+      // OpenAI format - handle both old and new API formats
+      const isGpt5Pro = model.includes('gpt-5-pro')
+      
+      if (isGpt5Pro) {
+        // GPT-5 Pro uses /v1/responses endpoint with different structure
+        if (payload?.status === 'incomplete') {
+          const error = new Error(`OpenAI response was incomplete: ${payload.status}`)
+          endCommunicationTracking('FRM', model, 'Response incomplete', { reason: payload.status }, true)
+          throw error
+        }
+        
+        // Try to extract text from the new format
+        logToFile('GPT-5 Pro payload structure:', {
+          keys: Object.keys(payload),
+          hasText: 'text' in payload,
+          hasOutput: 'output' in payload,
+          textType: typeof payload.text,
+          outputType: typeof payload.output
+        })
+        responseText = extractResponseText(payload)
+      } else {
+        // Standard OpenAI models use /v1/chat/completions
+        if (payload?.choices?.[0]?.finish_reason === 'incomplete') {
+          const error = new Error(`OpenAI response was incomplete: ${payload.choices[0].finish_reason}`)
+          endCommunicationTracking('FRM', model, 'Response incomplete', { reason: payload.choices[0].finish_reason }, true)
+          throw error
+        }
+        responseText = payload?.choices?.[0]?.message?.content || ''
       }
     }
 
-    const rawText = extractResponseText(payload)
-    const sanitized = sanitizeJsonText(rawText)
+    if (!responseText) {
+      const error = new Error(`${provider.toUpperCase()} response was empty or invalid`)
+      endCommunicationTracking('FRM', model, 'Empty response', { payload }, true)
+      throw error
+    }
+
+    // Parse the response text as JSON
+    const sanitized = sanitizeJsonText(responseText)
 
     let parsed: unknown
     try {
       parsed = JSON.parse(sanitized)
     } catch (error) {
-      const parseError = new Error(`OpenAI response was not valid JSON: ${sanitized.slice(0, 120)}...`)
-      endCommunicationTracking('FRM', 'GPT-5', 'JSON parse failed', { error: parseError.message }, true)
+      const parseError = new Error(`${provider.toUpperCase()} response was not valid JSON: ${sanitized.slice(0, 120)}...`)
+      endCommunicationTracking('FRM', model, 'JSON parse failed', { error: parseError.message }, true)
       throw parseError
     }
 
@@ -1396,23 +1727,32 @@ const generateAISchema = async (options: SchemaGenerationOptions = {}) => {
 
     // Track successful completion
     endCommunicationTracking('FRM', 'MCP', 'Validation successful', { validationStatus: validation.status })
-    endCommunicationTracking('FRM', 'GPT-5', 'Generation completed successfully', { dataSize: JSON.stringify(parsed).length })
+    endCommunicationTracking('FRM', model, 'Generation completed successfully', { dataSize: JSON.stringify(parsed).length })
 
     return parsed
   } catch (error) {
+    // Enhanced error logging
+    if (error && typeof error === 'object' && 'response' in error) {
+      const axiosError = error as any
+      logToFile('Schema generation error response:', {
+        status: axiosError.response?.status,
+        statusText: axiosError.response?.statusText,
+        data: axiosError.response?.data,
+        headers: axiosError.response?.headers
+      })
+    }
+    
     // Ensure we end tracking even on error
-    if (communicationStartTime) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-      const isTimeout = errorMessage.includes('timeout') || errorMessage.includes('HeadersTimeoutError') || errorMessage.includes('AbortError')
-      
-      endCommunicationTracking('FRM', 'GPT-5', 'Generation failed', { 
-        error: errorMessage,
-        isTimeout
-      }, true)
-      
-      if (isTimeout) {
-        throw new Error(`Request timed out after 45 minutes. The AI model may be experiencing high load. Please try again later.`)
-      }
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    const isTimeout = errorMessage.includes('timeout') || errorMessage.includes('HeadersTimeoutError') || errorMessage.includes('AbortError')
+    
+    endCommunicationTracking('FRM', model, 'Generation failed', { 
+      error: errorMessage,
+      isTimeout
+    }, true)
+    
+    if (isTimeout) {
+      throw new Error(`Request timed out after 45 minutes. The AI model may be experiencing high load. Please try again later.`)
     }
     throw error
   }
@@ -1651,10 +1991,59 @@ app.whenReady().then(() => {
   })
 
   ipcMain.handle('generate-ai-example', async (_event, options: SchemaGenerationOptions = {}) => {
+    const fs = await import('fs')
+    const path = await import('path')
+    
+    // Clear debug.log at the start of each generation
+    const logPath = path.default.join(process.cwd(), 'debug.log')
     try {
+      fs.default.writeFileSync(logPath, '')
+      console.log('Debug log cleared for new generation')
+    } catch (error) {
+      console.error('Failed to clear debug log:', error)
+    }
+    
+    const logToFile = (message: string, data?: any) => {
+      const logMessage = `${new Date().toISOString()}: ${message}${data ? ' ' + JSON.stringify(data, null, 2) : ''}\n`
+      console.log('Writing to debug log:', logPath)
+      try {
+        fs.default.appendFileSync(logPath, logMessage)
+      } catch (e) {
+        console.error('Failed to write to debug log:', e)
+      }
+      console.log(message, data)
+    }
+    
+    logToFile('=== IPC HANDLER START ===')
+    logToFile('Options received:', options)
+    logToFile('Test message to verify file writing works')
+    
+    try {
+      logToFile('Calling generateAISchema...')
       return await generateAISchema(options)
     } catch (error) {
+      // Enhanced error logging for IPC handler
+      const errorInfo = {
+        message: error instanceof Error ? error.message : String(error),
+        name: error instanceof Error ? error.name : 'Unknown',
+        stack: error instanceof Error ? error.stack : undefined,
+        type: typeof error,
+        isError: error instanceof Error
+      }
+      
+      logToFile('Error in IPC handler:', errorInfo)
       console.error('Failed to generate AI schema', error)
+      
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as any
+        logToFile('IPC Handler - Schema generation error response:', {
+          status: axiosError.response?.status,
+          statusText: axiosError.response?.statusText,
+          data: axiosError.response?.data,
+          headers: axiosError.response?.headers
+        })
+      }
+      
       if (error instanceof Error) {
         throw error
       }
@@ -1847,6 +2236,22 @@ app.whenReady().then(() => {
         throw error
       }
       throw new Error(`Schema validation failed: ${errorMessage}`)
+    }
+  })
+
+  ipcMain.handle('log-generation', async (_event, logEntry: string) => {
+    try {
+      const fs = await import('fs')
+      const path = await import('path')
+      
+      const logPath = path.default.join(process.cwd(), 'generation.log')
+      const timestamp = new Date().toISOString()
+      const logLine = `[${timestamp}] ${logEntry}\n`
+      
+      fs.default.appendFileSync(logPath, logLine)
+      console.log('Generation logged:', logEntry)
+    } catch (error) {
+      console.error('Failed to log generation:', error)
     }
   })
 

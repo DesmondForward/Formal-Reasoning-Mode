@@ -28,11 +28,11 @@ import {
   ExternalLink,
   TrendingUp
 } from 'lucide-react'
-import { useCommunication, CommunicationEvent } from '@/hooks/useCommunication'
+import { useCommunicationContext, CommunicationEvent } from '@/contexts/CommunicationContext'
 import { copyToClipboard as copyToClipboardUtil } from '@/utils/clipboard'
 
 const CommunicationLogPanel: React.FC = () => {
-  const { events, isConnected, connectionStatus, stats, clearEvents, clearInactiveEvents, addEvent } = useCommunication()
+  const { events, isConnected, connectionStatus, stats, clearEvents, clearInactiveEvents, addEvent } = useCommunicationContext()
   const [isExpanded, setIsExpanded] = useState(true)
   const [filter, setFilter] = useState<'all' | 'FRM' | 'MCP' | 'GPT-5'>('all')
   const [typeFilter, setTypeFilter] = useState<'all' | 'request' | 'response' | 'error' | 'info'>('all')

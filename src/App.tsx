@@ -31,14 +31,15 @@ import ErrorBoundary from '@/components/ErrorBoundary'
 import { useFRMData } from '@/hooks/useFRMData'
 import { useValidation } from '@/hooks/useValidation'
 import { useTheme } from '@/hooks/useTheme'
-import { useCommunication } from '@/hooks/useCommunication'
+import { CommunicationProvider, useCommunicationContext } from '@/contexts/CommunicationContext'
 import frmSchema from '/frm_schema.json'
 import { generateSchemaProblem } from '@/utils/schemaGenerator'
+import { generationLogger } from '@/utils/generationLogger'
 
 import './App.css'
 
-const App: React.FC = () => {
-  console.log('App component rendering...')
+const AppContent: React.FC = () => {
+  console.log('AppContent component rendering...')
   
   try {
     const { data, updateData, setData } = useFRMData()
@@ -47,7 +48,7 @@ const App: React.FC = () => {
     const { validation, validateData, validateUnknown } = useValidation(frmSchema)
     console.log('Validation loaded:', validation)
     
-    const { events } = useCommunication()
+    const { events } = useCommunicationContext()
     console.log('Communication loaded:', { eventsCount: events.length })
     
     const [activeTab, setActiveTab] = useState('editor')
@@ -57,6 +58,7 @@ const App: React.FC = () => {
     const [selectedDomain, setSelectedDomain] = useState<string>('')
     const [subDomainDescription, setSubDomainDescription] = useState<string>('')
     const [isLoading, setIsLoading] = useState(true)
+    const [generationStartTime, setGenerationStartTime] = useState<number | null>(null)
     const { theme, toggleTheme } = useTheme()
     
     console.log('App state:', { activeTab, isLoading, theme })
@@ -99,6 +101,8 @@ const App: React.FC = () => {
 
     const handleGenerateSchema = async (domain?: string, subDomain?: string) => {
       setIsGenerating(true)
+      setGenerationStartTime(Date.now())
+      
       try {
         const options: { domain?: string; scenarioHint?: string } = {}
         if (domain) options.domain = domain
@@ -109,6 +113,23 @@ const App: React.FC = () => {
 
         if (generationValidation.isValid && generationValidation.data) {
           setData(generationValidation.data)
+
+          // Log successful generation
+          if (generationStartTime) {
+            const duration = Date.now() - generationStartTime
+            // Get the model name from the most recent communication event
+            const recentEvents = events.filter(e => e.source === 'FRM' && e.target !== 'MCP')
+            const modelName = recentEvents.length > 0 ? recentEvents[recentEvents.length - 1].target : 'AI Model'
+            
+            generationLogger.logGeneration({
+              model: modelName,
+              domain: domain || 'Unknown',
+              subDomain: subDomain,
+              duration,
+              success: true,
+              source: source as 'ai' | 'fallback'
+            })
+          }
 
           if (source === 'fallback' && errorMessage) {
             const detail = errorMessage
@@ -125,6 +146,24 @@ const App: React.FC = () => {
           }
         } else {
           console.error('Validation failed:', generationValidation)
+          
+          // Log failed generation
+          if (generationStartTime) {
+            const duration = Date.now() - generationStartTime
+            // Get the model name from the most recent communication event
+            const recentEvents = events.filter(e => e.source === 'FRM' && e.target !== 'MCP')
+            const modelName = recentEvents.length > 0 ? recentEvents[recentEvents.length - 1].target : 'AI Model'
+            
+            generationLogger.logGeneration({
+              model: modelName,
+              domain: domain || 'Unknown',
+              subDomain: subDomain,
+              duration,
+              success: false,
+              errorMessage: 'Schema validation failed',
+              source: source as 'ai' | 'fallback'
+            })
+          }
           
           let summary = 'Unknown validation failure.'
           if (generationValidation.errors && generationValidation.errors.length > 0) {
@@ -155,6 +194,25 @@ const App: React.FC = () => {
         }
       } catch (error) {
         console.error('Failed to generate schema:', error)
+        
+        // Log error generation
+        if (generationStartTime) {
+          const duration = Date.now() - generationStartTime
+          // Get the model name from the most recent communication event
+          const recentEvents = events.filter(e => e.source === 'FRM' && e.target !== 'MCP')
+          const modelName = recentEvents.length > 0 ? recentEvents[recentEvents.length - 1].target : 'AI Model'
+          
+          generationLogger.logGeneration({
+            model: modelName,
+            domain: domain || 'Unknown',
+            subDomain: subDomain,
+            duration,
+            success: false,
+            errorMessage: error instanceof Error ? error.message : 'Unknown error',
+            source: 'ai'
+          })
+        }
+        
         const message = error instanceof Error ? error.message : 'Unknown error generating schema.'
 
         if (window?.electronAPI?.showMessageBox) {
@@ -168,6 +226,7 @@ const App: React.FC = () => {
         }
       } finally {
         setIsGenerating(false)
+        setGenerationStartTime(null)
       }
     }
 
@@ -342,6 +401,12 @@ const App: React.FC = () => {
             onSubDomainChange={setSubDomainDescription}
             onGenerateSchema={() => handleGenerateSchema(selectedDomain || undefined, subDomainDescription || undefined)}
             isGenerating={isGenerating}
+            onTimerStart={() => {
+              console.log('Generation timer started')
+            }}
+            onTimerStop={() => {
+              console.log('Generation timer stopped')
+            }}
           />
         </div>
 
@@ -546,6 +611,14 @@ const App: React.FC = () => {
       </div>
     )
   }
+}
+
+const App: React.FC = () => {
+  return (
+    <CommunicationProvider>
+      <AppContent />
+    </CommunicationProvider>
+  )
 }
 
 export default App

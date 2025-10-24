@@ -3,12 +3,15 @@ import { motion } from 'framer-motion'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import {
   type FRMData,
+  type OutputSectionOption,
+  OUTPUT_SECTION_OPTIONS,
+  type MathNotationOption,
+  type ExplanationDetailOption,
 } from '@/data/schema'
 
 interface OutputContractEditorProps {
@@ -16,22 +19,16 @@ interface OutputContractEditorProps {
   onChange: (output: FRMData['output_contract']) => void
 }
 
-const DEFAULT_SECTIONS: FRMData['output_contract']['sections_required'] = [
-  'VariablesAndUnitsTable',
-  'ModelEquations',
-  'MethodStatement',
-  'SolutionDerivation',
-  'Analysis',
-  'Conclusion',
-  'References',
-  'Glossary',
-]
+const ALL_SECTIONS: OutputSectionOption[] = [...OUTPUT_SECTION_OPTIONS]
 
-const toTitle = (value: string) =>
-  value
+const formatSectionLabel = (value: string) => {
+  // If it already contains spaces or special characters, use as-is
+  if (/[^A-Za-z0-9]/.test(value)) return value
+  return value
     .replace(/([A-Z])/g, ' $1')
     .trim()
     .replace(/\b\w/g, (char) => char.toUpperCase())
+}
 
 export const OutputContractEditor: React.FC<OutputContractEditorProps> = ({ data, onChange }) => {
   const updateField = <K extends keyof FRMData['output_contract']>(field: K, value: FRMData['output_contract'][K]) => {
@@ -41,7 +38,7 @@ export const OutputContractEditor: React.FC<OutputContractEditorProps> = ({ data
     })
   }
 
-  const toggleSection = (section: string) => {
+  const toggleSection = (section: OutputSectionOption) => {
     const sections = data.sections_required ?? []
     const next = sections.includes(section)
       ? sections.filter((item) => item !== section)
@@ -50,7 +47,7 @@ export const OutputContractEditor: React.FC<OutputContractEditorProps> = ({ data
   }
 
   const selectAllSections = () => {
-    updateField('sections_required', [...DEFAULT_SECTIONS])
+    updateField('sections_required', [...ALL_SECTIONS])
   }
 
   const deselectAllSections = () => {
@@ -58,7 +55,7 @@ export const OutputContractEditor: React.FC<OutputContractEditorProps> = ({ data
   }
 
   const selectedCount = (data.sections_required ?? []).length
-  const allSelected = selectedCount === DEFAULT_SECTIONS.length
+  const allSelected = selectedCount === ALL_SECTIONS.length
   const noneSelected = selectedCount === 0
 
   const updateFormatting = <K extends keyof NonNullable<FRMData['output_contract']['formatting']>>(
@@ -79,7 +76,7 @@ export const OutputContractEditor: React.FC<OutputContractEditorProps> = ({ data
             <CardTitle className="text-base">Required Output Sections</CardTitle>
             <div className="flex items-center justify-between mt-2">
               <p className="text-sm text-muted-foreground">
-                {selectedCount} of {DEFAULT_SECTIONS.length} sections selected
+                {selectedCount} of {ALL_SECTIONS.length} sections selected
               </p>
               <div className="flex gap-2">
                 <button
@@ -103,15 +100,15 @@ export const OutputContractEditor: React.FC<OutputContractEditorProps> = ({ data
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              {DEFAULT_SECTIONS.map((section) => (
+              {ALL_SECTIONS.map((section) => (
                 <div key={section} className="flex items-center space-x-2">
                   <Checkbox
-                    id={section}
+                    id={`section-${section.replace(/[^A-Za-z0-9]+/g, '_')}`}
                     checked={(data.sections_required ?? []).includes(section)}
                     onCheckedChange={() => toggleSection(section)}
                   />
-                  <Label htmlFor={section} className="text-sm">
-                    {toTitle(section)}
+                  <Label htmlFor={`section-${section.replace(/[^A-Za-z0-9]+/g, '_')}`} className="text-sm">
+                    {formatSectionLabel(section)}
                   </Label>
                 </div>
               ))}
@@ -131,7 +128,7 @@ export const OutputContractEditor: React.FC<OutputContractEditorProps> = ({ data
                 <Label>Math Notation</Label>
                 <Select
                   value={data.formatting?.math_notation ?? 'latex'}
-                  onValueChange={(value) => updateFormatting('math_notation', value as 'latex' | 'unicode')}
+                  onValueChange={(value) => updateFormatting('math_notation', value as MathNotationOption)}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -146,7 +143,7 @@ export const OutputContractEditor: React.FC<OutputContractEditorProps> = ({ data
                 <Label>Explanation Detail</Label>
                 <Select
                   value={data.formatting?.explanation_detail ?? 'detailed'}
-                  onValueChange={(value) => updateFormatting('explanation_detail', value as 'terse' | 'detailed')}
+                  onValueChange={(value) => updateFormatting('explanation_detail', value as ExplanationDetailOption)}
                 >
                   <SelectTrigger>
                     <SelectValue />

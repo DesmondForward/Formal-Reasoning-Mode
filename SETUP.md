@@ -19,10 +19,11 @@ The `dev` script launches the Vite development server and the Electron shell in 
 
 ## AI Example Generation
 
-- Create `.env.local` in the project root with `OPENAI_API_KEY=your-key` and optionally `OPENAI_MODEL=gpt-5-2025-08-07`; `.env` is used as a secondary fallback.
+- Create `.env.local` in the project root with your preferred AI provider configuration (see Environment Variables section below).
 - The Electron main process loads `.env.local` first and never overrides environment variables that are already set, so you can keep secrets out of version control.
-- Restart `npm run dev` (or rebuild) after editing the environment so the refreshed key is available to the Generate Schema handler.
+- Restart `npm run dev` (or rebuild) after editing the environment so the refreshed configuration is available to the Generate Schema handler.
 - When the AI request fails, the UI falls back to the bundled SEIR example and surfaces the error details from the main process.
+- **Supported AI Providers**: OpenAI (GPT-5), Google (Gemini 2.5), and Anthropic (Claude 3.5)
 
 ## Build Targets
 
@@ -151,17 +152,36 @@ npm run dist:linux   # Linux AppImage
 
 ### Environment Variables
 
-Create a `.env.local` file for development:
+Create a `.env.local` file for development. Copy from `.env.example` and configure your preferred AI provider:
 
 ```env
+# AI Provider Configuration
+# Set AI_PROVIDER to one of: openai, google, anthropic
+AI_PROVIDER=openai
+
 # OpenAI Configuration (for AI example generation)
 OPENAI_API_KEY=your_openai_api_key_here
 OPENAI_MODEL=gpt-5-2025-08-07
-OPENAI_API_URL=https://api.openai.com/v1/responses
+OPENAI_API_URL=https://api.openai.com/v1/chat/completions
+
+# Google Gemini Configuration
+GOOGLE_API_KEY=your_google_api_key_here
+GOOGLE_MODEL=gemini-2.5-pro
+GOOGLE_API_URL=https://generativelanguage.googleapis.com/v1beta
+
+# Anthropic Claude Configuration
+ANTHROPIC_API_KEY=your_anthropic_api_key_here
+ANTHROPIC_MODEL=claude-3-5-sonnet-20241022
+ANTHROPIC_API_URL=https://api.anthropic.com/v1/messages
 
 # Development
 VITE_DEV_SERVER_URL=http://localhost:3000
 ```
+
+**Available Models:**
+- **OpenAI**: gpt-5-2025-08-07, gpt-4o, gpt-4o-mini, gpt-4-turbo
+- **Google**: gemini-2.5-pro, gemini-2.5-flash, gemini-2.5-flash-lite, gemini-1.5-pro, gemini-1.5-flash
+- **Anthropic**: claude-3-5-sonnet-20241022, claude-3-5-haiku-20241022, claude-3-opus-20240229, claude-3-sonnet-20240229, claude-3-haiku-20240307
 
 ### Schema Customization
 

@@ -40,6 +40,8 @@ The application features **AI-powered novelty assurance**, **Model Context Proto
 - **🔗 MCP Integration** - Model Context Protocol server for AI tool integration
 - **📡 Real-time Communication** - Live communication logging and monitoring panel
 - **🎯 Novelty Assurance** - AI-powered novelty assessment with similarity metrics and redundancy checking
+- **⏱️ Generation Timer** - Real-time timer display during schema generation with precise duration tracking
+- **📋 Generation Logging** - Comprehensive logging of each generation including model, domain, sub-domain, and duration
 
 ### 🔧 **Developer Features**
 - **📝 Monaco Editor** - Professional code editor with syntax highlighting and IntelliSense
@@ -196,17 +198,36 @@ npm run dist:linux    # Linux only
 
 ### **Environment Variables**
 
-Create a `.env` file for development:
+Create a `.env.local` file for development. Copy from `.env.example` and configure your preferred AI provider:
 
 ```env
+# AI Provider Configuration
+# Set AI_PROVIDER to one of: openai, google, anthropic
+AI_PROVIDER=openai
+
 # OpenAI Configuration (for AI example generation)
 OPENAI_API_KEY=your_openai_api_key_here
-OPENAI_MODEL=gpt-4o  # Configurable - supports any OpenAI model
+OPENAI_MODEL=gpt-5-2025-08-07
 OPENAI_API_URL=https://api.openai.com/v1/chat/completions
+
+# Google Gemini Configuration
+GOOGLE_API_KEY=your_google_api_key_here
+GOOGLE_MODEL=gemini-2.5-pro
+GOOGLE_API_URL=https://generativelanguage.googleapis.com/v1beta
+
+# Anthropic Claude Configuration
+ANTHROPIC_API_KEY=your_anthropic_api_key_here
+ANTHROPIC_MODEL=claude-3-5-sonnet-20241022
+ANTHROPIC_API_URL=https://api.anthropic.com/v1/messages
 
 # Development
 VITE_DEV_SERVER_URL=http://localhost:3000
 ```
+
+**Supported AI Providers:**
+- **OpenAI**: GPT-5, GPT-4o, GPT-4o-mini, GPT-4-turbo
+- **Google**: Gemini 2.5 Pro, Gemini 2.5 Flash, Gemini 2.5 Flash-Lite, Gemini 1.5 Pro, Gemini 1.5 Flash
+- **Anthropic**: Claude 3.5 Sonnet, Claude 3.5 Haiku, Claude 3 Opus, Claude 3 Sonnet, Claude 3 Haiku
 
 ### **Schema Customization**
 

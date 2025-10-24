@@ -5,9 +5,10 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Play, RefreshCw } from 'lucide-react'
+import { Play, RefreshCw, Clock } from 'lucide-react'
 
 import { DOMAIN_CHOICES, type DomainChoice } from '@/data/domainMetadata'
+import { useGenerationTimer, formatElapsedTime } from '@/hooks/useGenerationTimer'
 
 interface DomainSelectorProps {
   value?: string
@@ -17,6 +18,8 @@ interface DomainSelectorProps {
   onGenerateSchema?: () => void
   isGenerating?: boolean
   className?: string
+  onTimerStart?: () => void
+  onTimerStop?: () => void
 }
 
 export const DomainSelector: React.FC<DomainSelectorProps> = ({
@@ -27,8 +30,34 @@ export const DomainSelector: React.FC<DomainSelectorProps> = ({
   onGenerateSchema,
   isGenerating = false,
   className,
+  onTimerStart,
+  onTimerStop,
 }) => {
   const selectedDomain = DOMAIN_CHOICES.find((option) => option.value === value)
+  const { isRunning, elapsedTime, startTimer, stopTimer, resetTimer } = useGenerationTimer()
+
+  const handleGenerateClick = () => {
+    if (isGenerating) return
+    
+    startTimer()
+    onTimerStart?.()
+    onGenerateSchema?.()
+  }
+
+  // Stop timer when generation completes
+  React.useEffect(() => {
+    if (!isGenerating && isRunning) {
+      stopTimer()
+      onTimerStop?.()
+    }
+  }, [isGenerating, isRunning, stopTimer, onTimerStop])
+
+  // Reset timer when starting new generation
+  React.useEffect(() => {
+    if (isGenerating && !isRunning) {
+      resetTimer()
+    }
+  }, [isGenerating, isRunning, resetTimer])
 
   return (
     <Card className={`w-full max-w-4xl ${className || ''}`}>
@@ -65,7 +94,7 @@ export const DomainSelector: React.FC<DomainSelectorProps> = ({
             {value && onGenerateSchema && (
               <div className="pt-2">
                 <Button
-                  onClick={onGenerateSchema}
+                  onClick={handleGenerateClick}
                   disabled={isGenerating}
                   className="w-full h-10"
                   variant="default"
@@ -74,6 +103,12 @@ export const DomainSelector: React.FC<DomainSelectorProps> = ({
                     <>
                       <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
                       Generating...
+                      {isRunning && (
+                        <span className="ml-2 flex items-center">
+                          <Clock className="h-3 w-3 mr-1" />
+                          {formatElapsedTime(elapsedTime)}
+                        </span>
+                      )}
                     </>
                   ) : (
                     <>

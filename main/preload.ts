@@ -9,6 +9,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   pingLLM: () => ipcRenderer.invoke('ping-llm'),
   validateSchema: (data: any) =>
     ipcRenderer.invoke('validate-schema', data),
+  logGeneration: (logEntry: string) =>
+    ipcRenderer.invoke('log-generation', logEntry),
 
   // Menu event listeners
   onMenuNewProblem: (callback: () => void) => {
