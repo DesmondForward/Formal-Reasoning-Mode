@@ -3,6 +3,8 @@ import { fileURLToPath } from 'node:url'
 import { join, dirname } from 'node:path'
 import { existsSync, readFileSync } from 'node:fs'
 import axios from 'axios'
+import https from 'https'
+import http from 'http'
 
 import { callValidateTool } from './mcp/frmMcpServer.js'
 
@@ -325,18 +327,27 @@ const retryWithBackoff = async <T>(
         break
       }
       
-      // Don't retry on certain error types
+      // Check error code and message for non-retryable errors
+      const errorCode = (error as any)?.code
       const errorMessage = lastError.message.toLowerCase()
+      const responseStatus = (error as any)?.response?.status
+      
+      // Don't retry on certain error types (authentication, authorization, not found)
       if (errorMessage.includes('unauthorized') || 
           errorMessage.includes('forbidden') || 
           errorMessage.includes('not found') ||
-          errorMessage.includes('invalid api key')) {
+          errorMessage.includes('invalid api key') ||
+          responseStatus === 401 ||
+          responseStatus === 403 ||
+          responseStatus === 404) {
         break
       }
       
+      // Connection errors (ECONNRESET, ECONNREFUSED, etc.) should be retried
       // Calculate delay with exponential backoff
       const delay = baseDelay * Math.pow(2, attempt)
-      console.log(`Request failed (attempt ${attempt + 1}/${maxRetries + 1}), retrying in ${delay}ms...`)
+      const errorInfo = errorCode ? ` (${errorCode})` : ''
+      console.log(`Request failed (attempt ${attempt + 1}/${maxRetries + 1})${errorInfo}, retrying in ${delay}ms...`)
       await new Promise(resolve => setTimeout(resolve, delay))
     }
   }
@@ -350,7 +361,7 @@ Your reply MUST be a single JSON object that strictly matches the FRM schema. Do
 Top-level keys (no others allowed): metadata, input, modeling, method_selection, solution_and_analysis, validation, output_contract, novelty_assurance.
 
 Key schema rules:
-• metadata – include problem_id, domain, version. domain must be one of: artificial_intelligence, astrophysics, autonomous_systems, biology, chemical_engineering, chemistry, climate_science, coding, computational_finance, cybersecurity, data_science, economics, energy_systems, engineering, fluid_dynamics, fluid_mechanics, general, geosciences, materials_science, mathematics, medicine, metrology, neuroscience, network_science, physics, public_health, quantum_computing, renewable_energy, robotics, signal_processing, social_science, space_technology, synthetic_biology, systems_biology. Optional novelty_context may contain problem_lineage_note, known_baselines (array of strings), intended_contribution_type (model|equation|method|problem|analysis|dataset|system|other), domains_involved (array of domain enum values).
+• metadata – include problem_id, domain, version. domain must be one of: artificial_intelligence, astrobiology, astrophysics, autonomous_systems, biology, blockchain_systems, chemical_engineering, chemistry, climate_geoengineering, climate_science, cognitive_science, coding, complex_systems, computational_finance, cybersecurity, data_science, economics, energy_systems, engineering, fluid_dynamics, fluid_mechanics, general, geosciences, materials_science, mathematics, medicine, metrology, neuroscience, network_science, physics, public_health, quantum_biology, quantum_computing, renewable_energy, robotics, signal_processing, social_science, space_technology, synthetic_biology, systems_biology, unconventional_computing. Optional novelty_context may contain problem_lineage_note, known_baselines (array of strings), intended_contribution_type (model|equation|method|problem|analysis|dataset|system|other), domains_involved (array of domain enum values).
 • input – provide problem_summary, scope_objective, mechanistic_notes, known_quantities (array of Quantity objects), unknowns (array of Variable objects with at least one entry), and constraints_goals {hard_constraints[], soft_preferences[], objective}. Constraint.type must be "equality" or "inequality"; Objective.sense must be "minimize" or "maximize".
 • modeling – required fields: model_class (ODE|PDE|DAE|SDE|discrete|hybrid), variables (array with ≥1 Variable), equations (array with ≥1 Equation). Optional arrays: initial_conditions, measurement_model, assumptions. interpretability_required is a boolean. symbolic_regression, when provided, must include algorithm_type, function_library array of {name, allowed}, search_strategy, data_description, benchmark_reference, novelty_metrics (array of strings). Every equation id must match ^(E|M|H)[0-9]+$, include lhs, rhs, mechanism_link, novelty_tag (new|variant|borrowed|baseline); prior_art_citations entries must be CitationID strings matching ^CIT[0-9]+$ and should reference entries in novelty_assurance.citations.
 • method_selection – include problem_type (dynamics|optimization|inference|simulation) and chosen_methods (array ≥1) with objects containing name and justification. Optional fields: prior_art_citations (array of CitationIDs), novelty_tag, novelty_diff, tolerances {absolute, relative}. If search_integration is used, include {enabled, tools_used[], strategy, justification}. CRITICAL: method_selection has additionalProperties=false, so NO other properties are allowed beyond these listed ones.
@@ -1422,14 +1433,41 @@ const pingLLM = async () => {
       { role: 'user', content: 'Ping - respond with "OK" to confirm connection.' },
     ]
     
-    const requestConfig = formatAIRequest(provider, model, messages, { max_tokens: 10 })
+    const isGpt5Pro = model.includes('gpt-5-pro')
     
-    // Override URL with the correct model-specific endpoint from getAIConfig
-    requestConfig.url = apiUrl
-    
-    // For ping, we don't need JSON response format
-    if (provider.toLowerCase() === 'openai') {
-      requestConfig.data.response_format = undefined
+    // Build request config based on model type
+    let requestConfig: any
+    if (isGpt5Pro) {
+      // GPT-5 Pro must use /v1/responses endpoint with specific structure
+      // For ping, we don't include text.format to avoid JSON format requirement
+      // Note: max_output_tokens minimum is 16 for GPT-5 Pro
+      requestConfig = {
+        url: 'https://api.openai.com/v1/responses',
+        data: {
+          model,
+          input: messages,
+          max_output_tokens: 200  // Sufficient for ping response
+          // Note: intentionally NOT including text.format for ping
+        },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        }
+      }
+    } else {
+      // Standard OpenAI models use chat completions
+      requestConfig = {
+        url: apiUrl,
+        data: {
+          model,
+          messages: messages,
+          max_tokens: 10
+        },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        }
+      }
     }
     
     // Debug logging
@@ -1444,7 +1482,7 @@ const pingLLM = async () => {
         headers: requestConfig.headers,
         timeout: 30000, // 30 seconds timeout for ping
       })
-    }, 1, 1000) // 1 retry with 1 second base delay
+    }, 3, 1000) // 3 retries with exponential backoff for network resilience
 
     if (response.status !== 200) {
       const error = new Error(`LLM ping failed (${response.status}): ${response.statusText}`)
@@ -1461,9 +1499,7 @@ const pingLLM = async () => {
     } else if (provider.toLowerCase() === 'anthropic') {
       responseText = payload?.content?.[0]?.text || ''
     } else {
-      // OpenAI format - handle both old and new API formats
-      const isGpt5Pro = model.includes('gpt-5-pro')
-      
+      // OpenAI format - handle GPT-5 Pro vs standard models
       if (isGpt5Pro) {
         // GPT-5 Pro uses /v1/responses endpoint with different structure
         responseText = extractResponseText(payload)
@@ -1486,26 +1522,67 @@ const pingLLM = async () => {
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-    const isTimeout = errorMessage.includes('timeout') || errorMessage.includes('HeadersTimeoutError') || errorMessage.includes('AbortError')
+    const errorCode = (error as any)?.code
+    
+    // Check for various network and timeout errors
+    const isTimeout = errorMessage.includes('timeout') || 
+                     errorMessage.includes('HeadersTimeoutError') || 
+                     errorMessage.includes('AbortError') ||
+                     errorCode === 'ETIMEDOUT'
+    
+    const isConnectionError = errorCode === 'ECONNRESET' || 
+                             errorCode === 'ECONNREFUSED' ||
+                             errorCode === 'ENOTFOUND' ||
+                             errorMessage.includes('socket hang up') ||
+                             errorMessage.includes('network')
     
     // Enhanced error logging
     if (error && typeof error === 'object' && 'response' in error) {
       const axiosError = error as any
-      console.error('Ping error response:', {
+      const errorDetails = {
         status: axiosError.response?.status,
         statusText: axiosError.response?.statusText,
         data: axiosError.response?.data,
-        headers: axiosError.response?.headers
+        headers: axiosError.response?.headers,
+        code: errorCode
+      }
+      console.error('Ping error response:', errorDetails)
+      
+      // Include API error message in the tracking if available
+      const apiErrorMessage = axiosError.response?.data?.error?.message || 
+                               axiosError.response?.data?.message || 
+                               JSON.stringify(axiosError.response?.data)
+      
+      endCommunicationTracking('FRM', model, 'Ping error', { 
+        error: errorMessage,
+        apiError: apiErrorMessage,
+        status: axiosError.response?.status,
+        code: errorCode,
+        isTimeout,
+        isConnectionError
+      }, true)
+    } else {
+      console.error('Ping error (no response):', {
+        message: errorMessage,
+        code: errorCode,
+        isTimeout,
+        isConnectionError
       })
+      
+      endCommunicationTracking('FRM', model, 'Ping error', { 
+        error: errorMessage,
+        code: errorCode,
+        isTimeout,
+        isConnectionError
+      }, true)
     }
-    
-    endCommunicationTracking('FRM', model, 'Ping error', { 
-      error: errorMessage,
-      isTimeout
-    }, true)
     
     if (isTimeout) {
       throw new Error(`Ping request timed out after 30 seconds. Please check your network connection and try again.`)
+    }
+    
+    if (isConnectionError) {
+      throw new Error(`Ping request failed due to network connection error (${errorCode || 'unknown'}). Please check your network connection and try again.`)
     }
     
     // If the error is a 400 and we're using gpt-5-nano, try with gpt-4o as fallback
@@ -1623,13 +1700,50 @@ const generateAISchema = async (options: SchemaGenerationOptions = {}) => {
     logToFile('Data keys:', Object.keys(requestConfig.data))
     logToFile('Headers keys:', Object.keys(requestConfig.headers))
     
+    // Configure agents for long-running requests with keep-alive
+    // Use aggressive keep-alive settings to prevent connection resets
+    const httpsAgent = new https.Agent({
+      keepAlive: true,
+      keepAliveMsecs: 60000, // Keep connections alive for 60 seconds
+      timeout: 2700000, // 45 minutes socket timeout
+      maxSockets: 1, // Use single connection to avoid connection pool issues
+      maxFreeSockets: 1,
+    })
+    
+    const httpAgent = new http.Agent({
+      keepAlive: true,
+      keepAliveMsecs: 60000,
+      timeout: 2700000,
+      maxSockets: 1,
+      maxFreeSockets: 1,
+    })
+    
     const response = await retryWithBackoff(async () => {
       logToFile('Making axios request...')
-      return await axios.post(requestConfig.url, requestConfig.data, {
-        headers: requestConfig.headers,
-        timeout: 2700000, // 45 minutes timeout (45 * 60 * 1000)
-      })
-    }, 2, 2000) // 2 retries with 2 second base delay
+      try {
+        return await axios.post(requestConfig.url, requestConfig.data, {
+          headers: {
+            ...requestConfig.headers,
+            'Connection': 'keep-alive', // Explicitly request keep-alive
+          },
+          timeout: 2700000, // 45 minutes timeout (45 * 60 * 1000)
+          httpsAgent: httpsAgent,
+          httpAgent: httpAgent,
+          maxContentLength: Infinity,
+          maxBodyLength: Infinity,
+          // Add signal abort controller for better timeout handling
+        })
+      } catch (error: any) {
+        // Log connection errors for debugging
+        if (error.code === 'ECONNRESET' || error.code === 'ECONNREFUSED') {
+          logToFile(`Connection error during request: ${error.code}`, {
+            message: error.message,
+            stack: error.stack
+          })
+        }
+        throw error
+      }
+    }, 5, 10000) // 5 retries with 10 second base delay for long requests
     
     logToFile('=== AXIOS RESPONSE ===')
     logToFile('Status:', response.status)
@@ -1731,6 +1845,21 @@ const generateAISchema = async (options: SchemaGenerationOptions = {}) => {
 
     return parsed
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    const errorCode = (error as any)?.code
+    
+    // Check for various network and timeout errors
+    const isTimeout = errorMessage.includes('timeout') || 
+                     errorMessage.includes('HeadersTimeoutError') || 
+                     errorMessage.includes('AbortError') ||
+                     errorCode === 'ETIMEDOUT'
+    
+    const isConnectionError = errorCode === 'ECONNRESET' || 
+                             errorCode === 'ECONNREFUSED' ||
+                             errorCode === 'ENOTFOUND' ||
+                             errorMessage.includes('socket hang up') ||
+                             errorMessage.includes('network')
+    
     // Enhanced error logging
     if (error && typeof error === 'object' && 'response' in error) {
       const axiosError = error as any
@@ -1738,22 +1867,39 @@ const generateAISchema = async (options: SchemaGenerationOptions = {}) => {
         status: axiosError.response?.status,
         statusText: axiosError.response?.statusText,
         data: axiosError.response?.data,
-        headers: axiosError.response?.headers
+        headers: axiosError.response?.headers,
+        code: errorCode,
+        isTimeout,
+        isConnectionError
+      })
+    } else {
+      logToFile('Schema generation error (no response):', {
+        message: errorMessage,
+        code: errorCode,
+        isTimeout,
+        isConnectionError
       })
     }
     
     // Ensure we end tracking even on error
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-    const isTimeout = errorMessage.includes('timeout') || errorMessage.includes('HeadersTimeoutError') || errorMessage.includes('AbortError')
-    
     endCommunicationTracking('FRM', model, 'Generation failed', { 
       error: errorMessage,
-      isTimeout
+      code: errorCode,
+      isTimeout,
+      isConnectionError
     }, true)
     
     if (isTimeout) {
       throw new Error(`Request timed out after 45 minutes. The AI model may be experiencing high load. Please try again later.`)
     }
+    
+    if (isConnectionError) {
+      const retryMessage = errorCode === 'ECONNRESET' 
+        ? 'The connection was reset by the server. This often happens with very long-running requests. The request has been automatically retried. If this persists, try reducing the complexity of the schema or splitting the generation into smaller parts.'
+        : `Schema generation failed due to network connection error (${errorCode || 'unknown'}). Please check your network connection and try again.`
+      throw new Error(retryMessage)
+    }
+    
     throw error
   }
 }

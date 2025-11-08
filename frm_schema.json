@@ -35,13 +35,18 @@
           "type": "string",
           "enum": [
             "artificial_intelligence",
+            "astrobiology",
             "astrophysics",
             "autonomous_systems",
             "biology",
+            "blockchain_systems",
             "chemical_engineering",
             "chemistry",
+            "climate_geoengineering",
             "climate_science",
+            "cognitive_science",
             "coding",
+            "complex_systems",
             "computational_finance",
             "cybersecurity",
             "data_science",
@@ -60,6 +65,7 @@
             "network_science",
             "physics",
             "public_health",
+            "quantum_biology",
             "quantum_computing",
             "renewable_energy",
             "robotics",
@@ -67,7 +73,8 @@
             "social_science",
             "space_technology",
             "synthetic_biology",
-            "systems_biology"
+            "systems_biology",
+            "unconventional_computing"
           ],
           "description": "Primary domain or field of the problem."
         },
@@ -112,13 +119,18 @@
                 "type": "string",
                 "enum": [
                   "artificial_intelligence",
+                  "astrobiology",
                   "astrophysics",
                   "autonomous_systems",
                   "biology",
+                  "blockchain_systems",
                   "chemical_engineering",
                   "chemistry",
+                  "climate_geoengineering",
                   "climate_science",
+                  "cognitive_science",
                   "coding",
+                  "complex_systems",
                   "computational_finance",
                   "cybersecurity",
                   "data_science",
@@ -137,6 +149,7 @@
                   "network_science",
                   "physics",
                   "public_health",
+                  "quantum_biology",
                   "quantum_computing",
                   "renewable_energy",
                   "robotics",
@@ -144,7 +157,8 @@
                   "social_science",
                   "space_technology",
                   "synthetic_biology",
-                  "systems_biology"
+                  "systems_biology",
+                  "unconventional_computing"
                 ]
               },
               "description": "List of additional domains or disciplines involved (for cross-domain novelty)."

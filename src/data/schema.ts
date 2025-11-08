@@ -174,13 +174,18 @@ export function validateArrayUpdate<T>(
 
 export const DOMAIN_OPTIONS = [
   'artificial_intelligence',
+  'astrobiology',
   'astrophysics',
   'autonomous_systems',
   'biology',
+  'blockchain_systems',
   'chemical_engineering',
   'chemistry',
+  'climate_geoengineering',
   'climate_science',
+  'cognitive_science',
   'coding',
+  'complex_systems',
   'computational_finance',
   'cybersecurity',
   'data_science',
@@ -199,6 +204,7 @@ export const DOMAIN_OPTIONS = [
   'network_science',
   'physics',
   'public_health',
+  'quantum_biology',
   'quantum_computing',
   'renewable_energy',
   'robotics',
@@ -206,7 +212,8 @@ export const DOMAIN_OPTIONS = [
   'social_science',
   'space_technology',
   'synthetic_biology',
-  'systems_biology'
+  'systems_biology',
+  'unconventional_computing'
 ] as const
 export type DomainOption = typeof DOMAIN_OPTIONS[number]
 
