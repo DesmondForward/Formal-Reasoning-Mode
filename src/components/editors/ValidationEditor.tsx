@@ -401,6 +401,9 @@ export const ValidationEditor: React.FC<ValidationEditorProps> = ({ data, onChan
             <CardTitle className="text-base">Expert Review</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div className="rounded-md bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 p-3 text-sm text-yellow-800 dark:text-yellow-200">
+              <strong>Important:</strong> Only fill this section if actual domain experts have reviewed the work. Do not create fake expert names or made-up summaries. Expert reviews must be based on real human expert assessments.
+            </div>
             <div className="space-y-2">
               <Label>Experts</Label>
               <Textarea
@@ -410,7 +413,7 @@ export const ValidationEditor: React.FC<ValidationEditorProps> = ({ data, onChan
                   summary: data.expert_review?.summary ?? '',
                   interpretability_score: data.expert_review?.interpretability_score ?? 0
                 })}
-                placeholder="List expert names, one per line..."
+                placeholder="List real expert names, one per line..."
                 rows={3}
               />
             </div>
@@ -423,7 +426,7 @@ export const ValidationEditor: React.FC<ValidationEditorProps> = ({ data, onChan
                   summary: event.target.value,
                   interpretability_score: data.expert_review?.interpretability_score ?? 0
                 })}
-                placeholder="Expert review summary..."
+                placeholder="Real expert review summary based on actual assessment..."
                 rows={4}
               />
             </div>
