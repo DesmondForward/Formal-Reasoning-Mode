@@ -1430,10 +1430,46 @@ const pingLLM = async () => {
     ]
     
     const isGpt5Pro = model.includes('gpt-5-pro')
+    const providerLower = provider.toLowerCase()
     
-    // Build request config based on model type
+    // Build request config based on provider and model type
     let requestConfig: any
-    if (isGpt5Pro) {
+    if (providerLower === 'google') {
+      // Google Gemini models use /v1beta/models/{model}:generateContent endpoint
+      const baseUrl = process.env.GOOGLE_API_URL ?? 'https://generativelanguage.googleapis.com/v1beta'
+      requestConfig = {
+        url: `${baseUrl}/models/${model}:generateContent`,
+        data: {
+          contents: [{
+            parts: [{
+              text: messages[0].content
+            }]
+          }],
+          generationConfig: {
+            maxOutputTokens: 10
+          }
+        },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': apiKey
+        }
+      }
+    } else if (providerLower === 'anthropic') {
+      // Anthropic Claude models use /v1/messages endpoint
+      requestConfig = {
+        url: process.env.ANTHROPIC_API_URL ?? 'https://api.anthropic.com/v1/messages',
+        data: {
+          model,
+          messages: messages,
+          max_tokens: 10
+        },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01'
+        }
+      }
+    } else if (isGpt5Pro) {
       // GPT-5 Pro must use /v1/responses endpoint with specific structure
       // For ping, we don't include text.format to avoid JSON format requirement
       // Note: max_output_tokens minimum is 16 for GPT-5 Pro
