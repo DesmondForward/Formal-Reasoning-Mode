@@ -310,7 +310,7 @@ const formatAIRequest = (provider: string, model: string, messages: any[], optio
 
 // Helper function to retry requests with exponential backoff
 const retryWithBackoff = async <T>(
-  operation: () => Promise<T>,
+  operation: ((attempt: number) => Promise<T>) | (() => Promise<T>),
   maxRetries: number = 3,
   baseDelay: number = 1000
 ): Promise<T> => {
@@ -318,7 +318,9 @@ const retryWithBackoff = async <T>(
   
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
-      return await operation()
+      // Always pass attempt number - functions that don't need it will ignore it
+      // This allows operations to create fresh connections on each retry
+      return await (operation as (attempt: number) => Promise<T>)(attempt)
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error))
       
@@ -344,10 +346,11 @@ const retryWithBackoff = async <T>(
       }
       
       // Connection errors (ECONNRESET, ECONNREFUSED, etc.) should be retried
-      // Calculate delay with exponential backoff
-      const delay = baseDelay * Math.pow(2, attempt)
+      // Calculate delay with exponential backoff and add jitter to prevent thundering herd
+      const baseDelayWithJitter = baseDelay + Math.random() * baseDelay * 0.1 // Add up to 10% jitter
+      const delay = baseDelayWithJitter * Math.pow(2, attempt)
       const errorInfo = errorCode ? ` (${errorCode})` : ''
-      console.log(`Request failed (attempt ${attempt + 1}/${maxRetries + 1})${errorInfo}, retrying in ${delay}ms...`)
+      console.log(`Request failed (attempt ${attempt + 1}/${maxRetries + 1})${errorInfo}, retrying in ${Math.round(delay)}ms...`)
       await new Promise(resolve => setTimeout(resolve, delay))
     }
   }
@@ -1712,6 +1715,14 @@ const generateAISchema = async (options: SchemaGenerationOptions = {}) => {
   // Track request to the selected AI model
   startCommunicationTracking('FRM', model, 'Generate AI schema', { options, model })
 
+  // Determine timeout based on provider and model
+  // Gemini and GPT-5-pro models need ~40 minutes for long generation tasks
+  const isGemini = provider.toLowerCase() === 'google'
+  const isGpt5Pro = model.includes('gpt-5-pro')
+  const requestTimeout = (isGemini || isGpt5Pro) 
+    ? 2400000  // 40 minutes for Gemini and GPT-5-pro (40 * 60 * 1000)
+    : 2700000  // 45 minutes for other models (45 * 60 * 1000)
+
   try {
     const messages = [
       { role: 'system', content: DEFAULT_SYSTEM_PROMPT },
@@ -1732,50 +1743,94 @@ const generateAISchema = async (options: SchemaGenerationOptions = {}) => {
     logToFile('Data keys:', Object.keys(requestConfig.data))
     logToFile('Headers keys:', Object.keys(requestConfig.headers))
     
-    // Configure agents for long-running requests with keep-alive
-    // Use aggressive keep-alive settings to prevent connection resets
-    const httpsAgent = new https.Agent({
-      keepAlive: true,
-      keepAliveMsecs: 60000, // Keep connections alive for 60 seconds
-      timeout: 2700000, // 45 minutes socket timeout
-      maxSockets: 1, // Use single connection to avoid connection pool issues
-      maxFreeSockets: 1,
+    logToFile('Request timeout configured:', {
+      provider,
+      model,
+      timeoutMs: requestTimeout,
+      timeoutMinutes: requestTimeout / 60000,
+      isGemini,
+      isGpt5Pro
     })
     
-    const httpAgent = new http.Agent({
-      keepAlive: true,
-      keepAliveMsecs: 60000,
-      timeout: 2700000,
-      maxSockets: 1,
-      maxFreeSockets: 1,
-    })
+    // Helper function to create fresh agents for each retry attempt
+    // This prevents using stale connections that may have been reset
+    const createFreshAgents = () => {
+      // Configure agents for long-running requests with keep-alive
+      // Use aggressive keep-alive settings to prevent connection resets
+      const httpsAgent = new https.Agent({
+        keepAlive: true,
+        keepAliveMsecs: 30000, // Keep connections alive for 30 seconds (reduced from 60)
+        timeout: requestTimeout, // Use provider-specific timeout
+        maxSockets: 1, // Use single connection to avoid connection pool issues
+        maxFreeSockets: 1,
+      })
+      
+      const httpAgent = new http.Agent({
+        keepAlive: true,
+        keepAliveMsecs: 30000,
+        timeout: requestTimeout, // Use provider-specific timeout
+        maxSockets: 1,
+        maxFreeSockets: 1,
+      })
+      
+      return { httpsAgent, httpAgent }
+    }
     
-    const response = await retryWithBackoff(async () => {
-      logToFile('Making axios request...')
+    const response = await retryWithBackoff(async (attempt: number) => {
+      logToFile(`Making axios request (attempt ${attempt + 1})...`)
+      
+      // Create fresh agents for each retry attempt to avoid stale connections
+      const { httpsAgent, httpAgent } = createFreshAgents()
+      
       try {
-        return await axios.post(requestConfig.url, requestConfig.data, {
-          headers: {
-            ...requestConfig.headers,
-            'Connection': 'keep-alive', // Explicitly request keep-alive
-          },
-          timeout: 2700000, // 45 minutes timeout (45 * 60 * 1000)
-          httpsAgent: httpsAgent,
-          httpAgent: httpAgent,
-          maxContentLength: Infinity,
-          maxBodyLength: Infinity,
-          // Add signal abort controller for better timeout handling
-        })
+        // Create an AbortController for this specific request
+        const abortController = new AbortController()
+        
+        // Set up a timeout that will abort the request if it takes too long
+        const timeoutId = setTimeout(() => {
+          abortController.abort()
+        }, requestTimeout) // Use provider-specific timeout
+        
+        try {
+          const response = await axios.post(requestConfig.url, requestConfig.data, {
+            headers: {
+              ...requestConfig.headers,
+              'Connection': 'keep-alive', // Explicitly request keep-alive
+              'Keep-Alive': 'timeout=30', // Request 30 second keep-alive from server
+            },
+            timeout: requestTimeout, // Use provider-specific timeout
+            httpsAgent: httpsAgent,
+            httpAgent: httpAgent,
+            maxContentLength: Infinity,
+            maxBodyLength: Infinity,
+            signal: abortController.signal,
+            // Add response validation
+            validateStatus: (status) => status >= 200 && status < 300,
+          })
+          
+          clearTimeout(timeoutId)
+          return response
+        } catch (error: any) {
+          clearTimeout(timeoutId)
+          throw error
+        }
       } catch (error: any) {
         // Log connection errors for debugging
-        if (error.code === 'ECONNRESET' || error.code === 'ECONNREFUSED') {
-          logToFile(`Connection error during request: ${error.code}`, {
+        if (error.code === 'ECONNRESET' || error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
+          logToFile(`Connection error during request (attempt ${attempt + 1}): ${error.code}`, {
             message: error.message,
-            stack: error.stack
+            stack: error.stack,
+            attempt: attempt + 1
           })
         }
+        
+        // Destroy agents on error to force fresh connection on retry
+        httpsAgent.destroy()
+        httpAgent.destroy()
+        
         throw error
       }
-    }, 5, 10000) // 5 retries with 10 second base delay for long requests
+    }, 5, 15000) // 5 retries with 15 second base delay (increased from 10s) for long requests
     
     logToFile('=== AXIOS RESPONSE ===')
     logToFile('Status:', response.status)
@@ -1922,7 +1977,8 @@ const generateAISchema = async (options: SchemaGenerationOptions = {}) => {
     }, true)
     
     if (isTimeout) {
-      throw new Error(`Request timed out after 45 minutes. The AI model may be experiencing high load. Please try again later.`)
+      const timeoutMinutes = requestTimeout / 60000
+      throw new Error(`Request timed out after ${timeoutMinutes} minutes. The AI model may be experiencing high load. Please try again later.`)
     }
     
     if (isConnectionError) {

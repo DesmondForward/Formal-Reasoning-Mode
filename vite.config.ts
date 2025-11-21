@@ -5,9 +5,26 @@ import { resolve } from 'path'
 export default defineConfig({
   plugins: [react()],
   base: './',
+  esbuild: {
+    // Optimize for production builds
+    drop: process.env.NODE_ENV === 'production' ? ['console', 'debugger'] : [],
+    legalComments: 'none',
+    minifyIdentifiers: true,
+    minifySyntax: true,
+    minifyWhitespace: true,
+    treeShaking: true,
+    // Target modern browsers for better optimization
+    target: 'es2020',
+    // Keep names for better debugging in development
+    keepNames: process.env.NODE_ENV !== 'production',
+  },
   build: {
     outDir: 'dist',
     emptyOutDir: true,
+    // Use esbuild for faster minification
+    minify: 'esbuild',
+    // Optimize chunk size
+    chunkSizeWarningLimit: 1000, // Increase limit to 1MB
     rollupOptions: {
       output: {
         manualChunks: {
@@ -56,7 +73,6 @@ export default defineConfig({
         }
       }
     },
-    chunkSizeWarningLimit: 1000, // Increase limit to 1MB
   },
   resolve: {
     alias: {
