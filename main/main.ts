@@ -29,7 +29,7 @@ const sendCommunicationEvent = (event: Omit<CommunicationEvent, 'id' | 'timestam
     id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     timestamp: new Date()
   }
-  
+
   if (mainWindow) {
     console.log('Sending communication event:', fullEvent)
     mainWindow.webContents.send('communication-event', fullEvent)
@@ -52,7 +52,7 @@ const startCommunicationTracking = (source: 'FRM' | 'MCP' | 'GPT-5' | string, ta
 const endCommunicationTracking = (source: 'FRM' | 'MCP' | 'GPT-5' | string, target: 'FRM' | 'MCP' | 'GPT-5' | string, message: string, data?: any, isError = false) => {
   const duration = communicationStartTime ? Date.now() - communicationStartTime : undefined
   communicationStartTime = null
-  
+
   sendCommunicationEvent({
     source,
     target,
@@ -138,7 +138,7 @@ loadEnvIfPresent()
 
 const getOpenAIConfig = () => {
   const model = process.env.OPENAI_MODEL ?? 'gpt-5-2025-08-07'
-  
+
   // Model-specific endpoint selection (ignores OPENAI_API_URL for GPT-5 models)
   const getApiUrl = (model: string) => {
     // GPT-5 Pro models use /v1/responses endpoint
@@ -152,15 +152,15 @@ const getOpenAIConfig = () => {
     // Default to standard chat completions endpoint
     return process.env.OPENAI_API_URL ?? 'https://api.openai.com/v1/chat/completions'
   }
-  
+
   const apiUrl = getApiUrl(model)
-  
+
   const config = {
     apiKey: process.env.OPENAI_API_KEY,
     model: model,
     apiUrl: apiUrl,
   }
-  
+
   // Debug logging
   console.log('OpenAI Config:', {
     model: config.model,
@@ -171,7 +171,7 @@ const getOpenAIConfig = () => {
     isGpt5Pro: model.includes('gpt-5-pro'),
     endpointType: model.includes('gpt-5-pro') ? 'responses' : model.includes('gpt-5') ? 'chat/completions' : 'default'
   })
-  
+
   return config
 }
 
@@ -190,7 +190,7 @@ const getAnthropicConfig = () => ({
 // Get the active AI provider configuration
 const getAIConfig = () => {
   const provider = process.env.AI_PROVIDER ?? 'openai'
-  
+
   switch (provider.toLowerCase()) {
     case 'google':
       return getGoogleConfig()
@@ -218,17 +218,17 @@ const getOpenAIUrl = (model: string) => {
 
 // Format request based on AI provider
 const formatAIRequest = (provider: string, model: string, messages: any[], options: any) => {
-  const baseUrl = provider.toLowerCase() === 'google' 
+  const baseUrl = provider.toLowerCase() === 'google'
     ? `${process.env.GOOGLE_API_URL ?? 'https://generativelanguage.googleapis.com/v1beta'}/models/${model}:generateContent`
     : provider.toLowerCase() === 'anthropic'
-    ? process.env.ANTHROPIC_API_URL ?? 'https://api.anthropic.com/v1/messages'
-    : getOpenAIUrl(model)
+      ? process.env.ANTHROPIC_API_URL ?? 'https://api.anthropic.com/v1/messages'
+      : getOpenAIUrl(model)
 
   switch (provider.toLowerCase()) {
     case 'google':
       const systemMessage = messages.find(m => m.role === 'system')?.content || ''
       const userMessage = messages.find(m => m.role === 'user')?.content || ''
-      
+
       return {
         url: baseUrl,
         data: {
@@ -267,7 +267,7 @@ const formatAIRequest = (provider: string, model: string, messages: any[], optio
     default:
       // Check if this is GPT-5 Pro (uses /v1/responses endpoint)
       const isGpt5Pro = model.includes('gpt-5-pro')
-      
+
       if (isGpt5Pro) {
         // GPT-5 Pro uses different parameter structure for /v1/responses
         return {
@@ -315,7 +315,7 @@ const retryWithBackoff = async <T>(
   baseDelay: number = 1000
 ): Promise<T> => {
   let lastError: Error
-  
+
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       // Always pass attempt number - functions that don't need it will ignore it
@@ -323,28 +323,28 @@ const retryWithBackoff = async <T>(
       return await (operation as (attempt: number) => Promise<T>)(attempt)
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error))
-      
+
       // Don't retry on the last attempt
       if (attempt === maxRetries) {
         break
       }
-      
+
       // Check error code and message for non-retryable errors
       const errorCode = (error as any)?.code
       const errorMessage = lastError.message.toLowerCase()
       const responseStatus = (error as any)?.response?.status
-      
+
       // Don't retry on certain error types (authentication, authorization, not found)
-      if (errorMessage.includes('unauthorized') || 
-          errorMessage.includes('forbidden') || 
-          errorMessage.includes('not found') ||
-          errorMessage.includes('invalid api key') ||
-          responseStatus === 401 ||
-          responseStatus === 403 ||
-          responseStatus === 404) {
+      if (errorMessage.includes('unauthorized') ||
+        errorMessage.includes('forbidden') ||
+        errorMessage.includes('not found') ||
+        errorMessage.includes('invalid api key') ||
+        responseStatus === 401 ||
+        responseStatus === 403 ||
+        responseStatus === 404) {
         break
       }
-      
+
       // Connection errors (ECONNRESET, ECONNREFUSED, etc.) should be retried
       // Calculate delay with exponential backoff and add jitter to prevent thundering herd
       const baseDelayWithJitter = baseDelay + Math.random() * baseDelay * 0.1 // Add up to 10% jitter
@@ -354,7 +354,7 @@ const retryWithBackoff = async <T>(
       await new Promise(resolve => setTimeout(resolve, delay))
     }
   }
-  
+
   throw lastError!
 }
 
@@ -369,7 +369,7 @@ Key schema rules:
 • modeling – required fields: model_class (ODE|PDE|DAE|SDE|discrete|hybrid), variables (array with ≥1 Variable), equations (array with ≥1 Equation). Optional arrays: initial_conditions, measurement_model, assumptions. interpretability_required is a boolean. symbolic_regression, when provided, must include algorithm_type, function_library array of {name, allowed}, search_strategy, data_description, benchmark_reference, novelty_metrics (array of strings). Every equation id must match ^(E|M|H)[0-9]+$, include lhs, rhs, mechanism_link, novelty_tag (new|variant|borrowed|baseline); prior_art_citations entries must be CitationID strings matching ^CIT[0-9]+$ and should reference entries in novelty_assurance.citations.
 • method_selection – include problem_type (dynamics|optimization|inference|simulation) and chosen_methods (array ≥1) with objects containing name and justification. Optional fields: prior_art_citations (array of CitationIDs), novelty_tag, novelty_diff, tolerances {absolute, relative}. If search_integration is used, include {enabled, tools_used[], strategy, justification}. CRITICAL: method_selection has additionalProperties=false, so NO other properties are allowed beyond these listed ones.
 • solution_and_analysis – include solution_requests (array with values drawn only from ["solve_numeric","solve_analytic","optimize","infer"]). Optional: optimization_problem {objective, constraints[], solver}, inference_problem {prior, likelihood, sampler}, simulation_scenario {initial_state (STRING), parameters (STRING), inputs (STRING), horizon (STRING)}, narrative_guidance {style (tutorial|formal|conversational), depth (high_level|detailed), purpose (insight|verification|education)}. CRITICAL: simulation_scenario properties must be STRINGS, not objects or numbers. DO NOT include sensitivity_analysis, uncertainty_propagation, or any other properties not listed here.
-• validation – must contain unit_consistency_check, mechanism_coverage_check, novelty_gate_pass (set to true), constraint_satisfaction_metrics (array of {name,value,threshold}), fit_quality_metrics (same structure), counterfactual_sanity {enabled, perturb_percent ≥0}. Optional: novelty_checks (with direction lower_is_better|higher_is_better), generalization_checks, scientific_alignment_checks, expert_review {experts array ≥1, summary, interpretability_score}, dynamic_equation_validation. CRITICAL: Do NOT include expert_review unless actual domain experts have reviewed the work. Never generate fake expert names or made-up summaries. Expert reviews must be based on real human expert assessments only.
+• validation – must contain unit_consistency_check, mechanism_coverage_check, novelty_gate_pass (set to true), constraint_satisfaction_metrics (array of {name,value,threshold}), fit_quality_metrics (same structure), counterfactual_sanity {enabled, perturb_percent ≥0}. Optional: novelty_checks (array of {name, passed, value, threshold, direction: "lower_is_better"|"higher_is_better"}), generalization_checks (array of {dataset_used, metric_name, value, threshold, passed}), scientific_alignment_checks (array of {principle_name, passed}), expert_review {experts array of strings ≥1, summary, interpretability_score}, dynamic_equation_validation. CRITICAL: Do NOT include expert_review unless actual domain experts have reviewed the work. Never generate fake expert names or made-up summaries. Expert reviews must be based on real human expert assessments only. If included, experts array MUST contain strings only.
 • output_contract – sections_required must be an array that contains ALL of the following strings at least once (no extras): "VariablesAndUnitsTable", "ModelEquations", "MethodStatement", "SolutionDerivation", "Analysis", "Conclusion", "References", "Glossary". formatting must be exactly { "math_notation": "latex"|"unicode", "explanation_detail": "terse"|"detailed" } with NO other properties. safety_note must be { "flag": boolean, "content": string } with NO other properties. DO NOT include number_format, significant_figures, novelty_badge, interpretability_requirements, or any other properties not listed here.
 • novelty_assurance – include prior_work {search_queries array ≥1, literature_corpus_summary (≥30 chars), key_papers array of CitationIDs matching ^CIT[0-9]+$}, citations array ≥3 with objects {id: "CIT001" style, title, authors (single string), year (number), source (string)}. citation_checks must contain coverage_ratio (0-1), paraphrase_overlap (0-1), coverage_min_threshold (0.5-0.95) and optional conflicts[]. similarity_assessment requires metrics array (≥3) and aggregates {max_similarity, min_novelty_score, passes}; optional self_overlap_ratio, cross_domain_performance. novelty_claims array requires id matching ^NC[0-9]+$, statement ≥20 chars, category (model|equation|method|problem|analysis|dataset|system), evidence_citations (CitationID array ≥1), plus creativity_scores {originality, feasibility, impact, reliability} in [0,1]; include tests when useful. redundancy_check must list rules_applied[], final_decision ("proceed"|"revise"|"reject"), justification (≥20 chars), gate_pass true, optional blocker_reasons, overrides. evidence_tracking requires evidence_map array (each entry with section, citation_ids array, optional claim_id, file_ids, source_type from experimental_data|simulation|benchmark|theoretical) and may include artifacts array with type (graph|table|notebook|code|dataset|other), uri, optional hash. error_handling must include novelty_errors array, missing_evidence_policy ("fail_validation"|"allow_with_warning"), on_fail_action ("reject"|"request_more_search"|"revise"|"defer"). evaluation_dataset is optional but, if present, must follow the schema (name, description, data_scope, anonymization_methods).
 
@@ -601,7 +601,7 @@ Use credible science, engineering, public policy, or quantitative modelling scen
 Never reuse previous examples; vary the domain, governing equations, parameters, and motivation every time.
 Populate required arrays with at least three well-formed entries where applicable (e.g. known_quantities, unknowns, equations, chosen_methods).
 All numeric fields should be realistic and include units where the schema expects them.
-CRITICAL: Never generate expert_review data. Expert reviews require real human domain experts. Do not create fake expert names, summaries, or scores. Only include expert_review if explicitly provided by the user based on actual expert assessments.
+CRITICAL: Never generate expert_review data. Expert reviews require real human domain experts. Do not create fake expert names, summaries, or scores. Only include expert_review if explicitly provided by the user based on actual expert assessments. If expert_review IS generated, the 'experts' field must be an array of strings (names), not objects.
 Return strictly JSON with no Markdown fences or commentary.`
 
 type SchemaGenerationOptions = {
@@ -639,6 +639,7 @@ const buildUserPrompt = (options: SchemaGenerationOptions = {}): string => {
     '- The "novelty_assurance" section MUST include ALL fields: prior_work, citations, citation_checks, similarity_assessment, novelty_claims, redundancy_check, evidence_tracking, error_handling, evaluation_dataset',
     '- CRITICAL: error_handling.missing_evidence_policy MUST be exactly one of: "fail_validation", "allow_with_warning" (NO other values allowed)',
     '- CRITICAL: error_handling.on_fail_action MUST be exactly one of: "reject", "request_more_search", "revise", "defer" (NO other values allowed)',
+    '- CRITICAL: novelty_assurance.redundancy_check.overrides, if present, MUST be an object { "allowed": boolean, "reason": string }. Do NOT set it to null or an empty array. If not needed, omit the key entirely.',
     '- CRITICAL: evidence_tracking.artifacts[].type MUST be exactly one of: "graph", "table", "notebook", "code", "dataset", "other" (NO other values allowed)',
     '- CRITICAL: evidence_tracking.evidence_map[].source_type MUST be exactly one of: "experimental_data", "simulation", "benchmark", "theoretical" (NO other values allowed)',
     '- The "solution_and_analysis" section MUST include ALL fields: solution_requests, sensitivity_analysis, uncertainty_propagation, optimization_problem, inference_problem',
@@ -1150,7 +1151,7 @@ const removeExtraProperties = (obj: unknown): unknown => {
   // Define the allowed top-level properties
   const allowedTopLevelProperties = new Set([
     'metadata',
-    'input', 
+    'input',
     'modeling',
     'method_selection',
     'solution_and_analysis',
@@ -1337,9 +1338,9 @@ const cleanNoveltyAssurance = (obj: unknown): unknown => {
         }
         const conflict = item as Record<string, unknown>
         // Ensure it has the required properties
-        return typeof conflict.citation_id === 'string' && 
-               typeof conflict.issue === 'string' && 
-               typeof conflict.resolution === 'string'
+        return typeof conflict.citation_id === 'string' &&
+          typeof conflict.issue === 'string' &&
+          typeof conflict.resolution === 'string'
       })
     }
   }
@@ -1431,10 +1432,10 @@ const pingLLM = async () => {
     const messages = [
       { role: 'user', content: 'Ping - respond with "OK" to confirm connection.' },
     ]
-    
+
     const isGpt5Pro = model.includes('gpt-5-pro')
     const providerLower = provider.toLowerCase()
-    
+
     // Build request config based on provider and model type
     let requestConfig: any
     if (providerLower === 'google') {
@@ -1496,7 +1497,7 @@ const pingLLM = async () => {
         data: {
           model,
           messages: messages,
-          max_tokens: 10
+          max_completion_tokens: 10
         },
         headers: {
           'Content-Type': 'application/json',
@@ -1504,14 +1505,14 @@ const pingLLM = async () => {
         }
       }
     }
-    
+
     // Debug logging
     console.log('Ping request config:', {
       url: requestConfig.url,
       data: requestConfig.data,
       headers: { ...requestConfig.headers, 'Authorization': 'Bearer [REDACTED]' }
     })
-    
+
     const response = await retryWithBackoff(async () => {
       return await axios.post(requestConfig.url, requestConfig.data, {
         headers: requestConfig.headers,
@@ -1526,7 +1527,7 @@ const pingLLM = async () => {
     }
 
     const payload: any = response.data
-    
+
     // Handle different response formats based on provider
     let responseText = ''
     if (provider.toLowerCase() === 'google') {
@@ -1544,9 +1545,9 @@ const pingLLM = async () => {
       }
     }
 
-    endCommunicationTracking('FRM', model, 'Ping successful', { 
+    endCommunicationTracking('FRM', model, 'Ping successful', {
       response: responseText.trim(),
-      model 
+      model
     })
 
     return {
@@ -1558,19 +1559,19 @@ const pingLLM = async () => {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     const errorCode = (error as any)?.code
-    
+
     // Check for various network and timeout errors
-    const isTimeout = errorMessage.includes('timeout') || 
-                     errorMessage.includes('HeadersTimeoutError') || 
-                     errorMessage.includes('AbortError') ||
-                     errorCode === 'ETIMEDOUT'
-    
-    const isConnectionError = errorCode === 'ECONNRESET' || 
-                             errorCode === 'ECONNREFUSED' ||
-                             errorCode === 'ENOTFOUND' ||
-                             errorMessage.includes('socket hang up') ||
-                             errorMessage.includes('network')
-    
+    const isTimeout = errorMessage.includes('timeout') ||
+      errorMessage.includes('HeadersTimeoutError') ||
+      errorMessage.includes('AbortError') ||
+      errorCode === 'ETIMEDOUT'
+
+    const isConnectionError = errorCode === 'ECONNRESET' ||
+      errorCode === 'ECONNREFUSED' ||
+      errorCode === 'ENOTFOUND' ||
+      errorMessage.includes('socket hang up') ||
+      errorMessage.includes('network')
+
     // Enhanced error logging
     if (error && typeof error === 'object' && 'response' in error) {
       const axiosError = error as any
@@ -1582,13 +1583,13 @@ const pingLLM = async () => {
         code: errorCode
       }
       console.error('Ping error response:', errorDetails)
-      
+
       // Include API error message in the tracking if available
-      const apiErrorMessage = axiosError.response?.data?.error?.message || 
-                               axiosError.response?.data?.message || 
-                               JSON.stringify(axiosError.response?.data)
-      
-      endCommunicationTracking('FRM', model, 'Ping error', { 
+      const apiErrorMessage = axiosError.response?.data?.error?.message ||
+        axiosError.response?.data?.message ||
+        JSON.stringify(axiosError.response?.data)
+
+      endCommunicationTracking('FRM', model, 'Ping error', {
         error: errorMessage,
         apiError: apiErrorMessage,
         status: axiosError.response?.status,
@@ -1603,23 +1604,23 @@ const pingLLM = async () => {
         isTimeout,
         isConnectionError
       })
-      
-      endCommunicationTracking('FRM', model, 'Ping error', { 
+
+      endCommunicationTracking('FRM', model, 'Ping error', {
         error: errorMessage,
         code: errorCode,
         isTimeout,
         isConnectionError
       }, true)
     }
-    
+
     if (isTimeout) {
       throw new Error(`Ping request timed out after 30 seconds. Please check your network connection and try again.`)
     }
-    
+
     if (isConnectionError) {
       throw new Error(`Ping request failed due to network connection error (${errorCode || 'unknown'}). Please check your network connection and try again.`)
     }
-    
+
     // If the error is a 400 and we're using gpt-5-nano, try with gpt-4o as fallback
     if (error && typeof error === 'object' && 'response' in error) {
       const axiosError = error as any
@@ -1638,19 +1639,19 @@ const pingLLM = async () => {
               'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
             }
           }
-          
+
           const fallbackResponse = await axios.post(fallbackRequest.url, fallbackRequest.data, {
             headers: fallbackRequest.headers,
             timeout: 30000
           })
-          
+
           if (fallbackResponse.status === 200) {
             const fallbackText = fallbackResponse.data?.choices?.[0]?.message?.content || ''
-            endCommunicationTracking('FRM', 'gpt-4o', 'Ping successful (fallback)', { 
+            endCommunicationTracking('FRM', 'gpt-4o', 'Ping successful (fallback)', {
               response: fallbackText.trim(),
               originalModel: model
             })
-            
+
             return {
               success: true,
               response: fallbackText.trim(),
@@ -1664,7 +1665,7 @@ const pingLLM = async () => {
         }
       }
     }
-    
+
     throw error
   }
 }
@@ -1672,7 +1673,7 @@ const pingLLM = async () => {
 const generateAISchema = async (options: SchemaGenerationOptions = {}) => {
   const fs = await import('fs')
   const path = await import('path')
-  
+
   const logToFile = (message: string, data?: any) => {
     const logMessage = `${new Date().toISOString()}: ${message}${data ? ' ' + JSON.stringify(data, null, 2) : ''}\n`
     const logPath = path.default.join(process.cwd(), 'debug.log')
@@ -1680,7 +1681,7 @@ const generateAISchema = async (options: SchemaGenerationOptions = {}) => {
     fs.default.appendFileSync(logPath, logMessage)
     console.log(message, data)
   }
-  
+
   // Clear debug.log at the start of each generation
   const logPath = path.default.join(process.cwd(), 'debug.log')
   try {
@@ -1689,13 +1690,13 @@ const generateAISchema = async (options: SchemaGenerationOptions = {}) => {
   } catch (error) {
     console.error('Failed to clear debug log:', error)
   }
-  
+
   logToFile('=== SCHEMA GENERATION START ===')
   logToFile('Options:', options)
-  
+
   const { apiKey, model, apiUrl } = getAIConfig()
   const provider = process.env.AI_PROVIDER ?? 'openai'
-  
+
   logToFile('Provider:', provider)
   logToFile('Model:', model)
   logToFile('API URL:', apiUrl)
@@ -1719,7 +1720,7 @@ const generateAISchema = async (options: SchemaGenerationOptions = {}) => {
   // Gemini and GPT-5-pro models need ~40 minutes for long generation tasks
   const isGemini = provider.toLowerCase() === 'google'
   const isGpt5Pro = model.includes('gpt-5-pro')
-  const requestTimeout = (isGemini || isGpt5Pro) 
+  const requestTimeout = (isGemini || isGpt5Pro)
     ? 2400000  // 40 minutes for Gemini and GPT-5-pro (40 * 60 * 1000)
     : 2700000  // 45 minutes for other models (45 * 60 * 1000)
 
@@ -1728,21 +1729,21 @@ const generateAISchema = async (options: SchemaGenerationOptions = {}) => {
       { role: 'system', content: DEFAULT_SYSTEM_PROMPT },
       { role: 'user', content: buildUserPrompt(options) },
     ]
-    
+
     const requestConfig = formatAIRequest(provider, model, messages, options)
-    
+
     // Debug logging for schema generation
     logToFile('Schema generation request config:', {
       url: requestConfig.url,
       data: requestConfig.data,
       headers: { ...requestConfig.headers, 'Authorization': 'Bearer [REDACTED]' }
     })
-    
+
     logToFile('=== MAKING AXIOS REQUEST ===')
     logToFile('URL:', requestConfig.url)
     logToFile('Data keys:', Object.keys(requestConfig.data))
     logToFile('Headers keys:', Object.keys(requestConfig.headers))
-    
+
     logToFile('Request timeout configured:', {
       provider,
       model,
@@ -1751,7 +1752,7 @@ const generateAISchema = async (options: SchemaGenerationOptions = {}) => {
       isGemini,
       isGpt5Pro
     })
-    
+
     // Helper function to create fresh agents for each retry attempt
     // This prevents using stale connections that may have been reset
     const createFreshAgents = () => {
@@ -1764,7 +1765,7 @@ const generateAISchema = async (options: SchemaGenerationOptions = {}) => {
         maxSockets: 1, // Use single connection to avoid connection pool issues
         maxFreeSockets: 1,
       })
-      
+
       const httpAgent = new http.Agent({
         keepAlive: true,
         keepAliveMsecs: 30000,
@@ -1772,25 +1773,25 @@ const generateAISchema = async (options: SchemaGenerationOptions = {}) => {
         maxSockets: 1,
         maxFreeSockets: 1,
       })
-      
+
       return { httpsAgent, httpAgent }
     }
-    
+
     const response = await retryWithBackoff(async (attempt: number) => {
       logToFile(`Making axios request (attempt ${attempt + 1})...`)
-      
+
       // Create fresh agents for each retry attempt to avoid stale connections
       const { httpsAgent, httpAgent } = createFreshAgents()
-      
+
       try {
         // Create an AbortController for this specific request
         const abortController = new AbortController()
-        
+
         // Set up a timeout that will abort the request if it takes too long
         const timeoutId = setTimeout(() => {
           abortController.abort()
         }, requestTimeout) // Use provider-specific timeout
-        
+
         try {
           const response = await axios.post(requestConfig.url, requestConfig.data, {
             headers: {
@@ -1807,7 +1808,7 @@ const generateAISchema = async (options: SchemaGenerationOptions = {}) => {
             // Add response validation
             validateStatus: (status) => status >= 200 && status < 300,
           })
-          
+
           clearTimeout(timeoutId)
           return response
         } catch (error: any) {
@@ -1823,15 +1824,15 @@ const generateAISchema = async (options: SchemaGenerationOptions = {}) => {
             attempt: attempt + 1
           })
         }
-        
+
         // Destroy agents on error to force fresh connection on retry
         httpsAgent.destroy()
         httpAgent.destroy()
-        
+
         throw error
       }
     }, 5, 15000) // 5 retries with 15 second base delay (increased from 10s) for long requests
-    
+
     logToFile('=== AXIOS RESPONSE ===')
     logToFile('Status:', response.status)
     logToFile('Response data keys:', Object.keys(response.data || {}))
@@ -1853,7 +1854,7 @@ const generateAISchema = async (options: SchemaGenerationOptions = {}) => {
     } else {
       // OpenAI format - handle both old and new API formats
       const isGpt5Pro = model.includes('gpt-5-pro')
-      
+
       if (isGpt5Pro) {
         // GPT-5 Pro uses /v1/responses endpoint with different structure
         if (payload?.status === 'incomplete') {
@@ -1861,7 +1862,7 @@ const generateAISchema = async (options: SchemaGenerationOptions = {}) => {
           endCommunicationTracking('FRM', model, 'Response incomplete', { reason: payload.status }, true)
           throw error
         }
-        
+
         // Try to extract text from the new format
         logToFile('GPT-5 Pro payload structure:', {
           keys: Object.keys(payload),
@@ -1912,17 +1913,17 @@ const generateAISchema = async (options: SchemaGenerationOptions = {}) => {
       console.error('Validation errors:', validation.errors)
       console.error('Generated data unknowns:', JSON.stringify((parsed as any)?.input?.unknowns, null, 2))
       const detailLines = validation.errors
-        .map((err, index) => `${index + 1}. ${(err.instancePath || '/') } ${err.message}`)
+        .map((err, index) => `${index + 1}. ${(err.instancePath || '/')} ${err.message}`)
         .slice(0, 8)
       const detail = detailLines.join('\n')
       const message =
         detail.length > 0
           ? `FRM MCP validation failed: ${validation.summary}` + '\n' + detail
           : `FRM MCP validation failed: ${validation.summary}`
-      
+
       endCommunicationTracking('FRM', 'MCP', 'Validation failed', { errors: validation.errors, summary: validation.summary }, true)
       endCommunicationTracking('FRM', 'GPT-5', 'Generation completed with validation errors', { validationErrors: validation.errors.length }, true)
-      
+
       throw new Error(message)
     }
 
@@ -1934,19 +1935,19 @@ const generateAISchema = async (options: SchemaGenerationOptions = {}) => {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     const errorCode = (error as any)?.code
-    
+
     // Check for various network and timeout errors
-    const isTimeout = errorMessage.includes('timeout') || 
-                     errorMessage.includes('HeadersTimeoutError') || 
-                     errorMessage.includes('AbortError') ||
-                     errorCode === 'ETIMEDOUT'
-    
-    const isConnectionError = errorCode === 'ECONNRESET' || 
-                             errorCode === 'ECONNREFUSED' ||
-                             errorCode === 'ENOTFOUND' ||
-                             errorMessage.includes('socket hang up') ||
-                             errorMessage.includes('network')
-    
+    const isTimeout = errorMessage.includes('timeout') ||
+      errorMessage.includes('HeadersTimeoutError') ||
+      errorMessage.includes('AbortError') ||
+      errorCode === 'ETIMEDOUT'
+
+    const isConnectionError = errorCode === 'ECONNRESET' ||
+      errorCode === 'ECONNREFUSED' ||
+      errorCode === 'ENOTFOUND' ||
+      errorMessage.includes('socket hang up') ||
+      errorMessage.includes('network')
+
     // Enhanced error logging
     if (error && typeof error === 'object' && 'response' in error) {
       const axiosError = error as any
@@ -1967,27 +1968,27 @@ const generateAISchema = async (options: SchemaGenerationOptions = {}) => {
         isConnectionError
       })
     }
-    
+
     // Ensure we end tracking even on error
-    endCommunicationTracking('FRM', model, 'Generation failed', { 
+    endCommunicationTracking('FRM', model, 'Generation failed', {
       error: errorMessage,
       code: errorCode,
       isTimeout,
       isConnectionError
     }, true)
-    
+
     if (isTimeout) {
       const timeoutMinutes = requestTimeout / 60000
       throw new Error(`Request timed out after ${timeoutMinutes} minutes. The AI model may be experiencing high load. Please try again later.`)
     }
-    
+
     if (isConnectionError) {
-      const retryMessage = errorCode === 'ECONNRESET' 
+      const retryMessage = errorCode === 'ECONNRESET'
         ? 'The connection was reset by the server. This often happens with very long-running requests. The request has been automatically retried. If this persists, try reducing the complexity of the schema or splitting the generation into smaller parts.'
         : `Schema generation failed due to network connection error (${errorCode || 'unknown'}). Please check your network connection and try again.`
       throw new Error(retryMessage)
     }
-    
+
     throw error
   }
 }
@@ -2015,7 +2016,7 @@ const createWindow = () => {
 
   // Show window immediately for debugging
   mainWindow.show()
-  
+
   mainWindow.once('ready-to-show', () => {
     console.log('Window is ready to show')
     mainWindow?.show()
@@ -2030,13 +2031,13 @@ const createWindow = () => {
         // Try multiple ports
         const ports = [3000, 3001, 3002, 3003, 3004, 3005, 3006]
         let portIndex = 0
-        
+
         const tryLoadUrl = () => {
           if (portIndex >= ports.length) {
             console.error('All dev server ports failed')
             return
           }
-          
+
           const port = ports[portIndex]
           console.log(`Retrying to load dev server on port ${port}`)
           mainWindow?.loadURL(`http://localhost:${port}`).catch((error) => {
@@ -2045,7 +2046,7 @@ const createWindow = () => {
             tryLoadUrl()
           })
         }
-        
+
         tryLoadUrl()
       }, 2000)
     }
@@ -2065,14 +2066,14 @@ const createWindow = () => {
       // Try multiple ports in case Vite picks a different one
       const ports = [3000, 3001, 3002, 3003, 3004, 3005, 3006]
       let portIndex = 0
-      
+
       const tryLoadUrl = () => {
         if (portIndex >= ports.length) {
           console.error('All dev server ports failed, falling back to built files')
           mainWindow?.loadFile(join(__dirname, 'index.html'))
           return
         }
-        
+
         const port = ports[portIndex]
         const url = `http://localhost:${port}`
         console.log(`Trying to load dev server on port ${port}: ${url}`)
@@ -2084,7 +2085,7 @@ const createWindow = () => {
           tryLoadUrl()
         })
       }
-      
+
       tryLoadUrl()
     }, 1000)
   } else {
@@ -2227,7 +2228,7 @@ app.whenReady().then(() => {
   ipcMain.handle('generate-ai-example', async (_event, options: SchemaGenerationOptions = {}) => {
     const fs = await import('fs')
     const path = await import('path')
-    
+
     // Clear debug.log at the start of each generation
     const logPath = path.default.join(process.cwd(), 'debug.log')
     try {
@@ -2236,7 +2237,7 @@ app.whenReady().then(() => {
     } catch (error) {
       console.error('Failed to clear debug log:', error)
     }
-    
+
     const logToFile = (message: string, data?: any) => {
       const logMessage = `${new Date().toISOString()}: ${message}${data ? ' ' + JSON.stringify(data, null, 2) : ''}\n`
       console.log('Writing to debug log:', logPath)
@@ -2247,11 +2248,11 @@ app.whenReady().then(() => {
       }
       console.log(message, data)
     }
-    
+
     logToFile('=== IPC HANDLER START ===')
     logToFile('Options received:', options)
     logToFile('Test message to verify file writing works')
-    
+
     try {
       logToFile('Calling generateAISchema...')
       return await generateAISchema(options)
@@ -2264,10 +2265,10 @@ app.whenReady().then(() => {
         type: typeof error,
         isError: error instanceof Error
       }
-      
+
       logToFile('Error in IPC handler:', errorInfo)
       console.error('Failed to generate AI schema', error)
-      
+
       if (error && typeof error === 'object' && 'response' in error) {
         const axiosError = error as any
         logToFile('IPC Handler - Schema generation error response:', {
@@ -2277,7 +2278,7 @@ app.whenReady().then(() => {
           headers: axiosError.response?.headers
         })
       }
-      
+
       if (error instanceof Error) {
         throw error
       }
@@ -2300,15 +2301,15 @@ app.whenReady().then(() => {
   ipcMain.handle('validate-schema', async (_event, data: any) => {
     try {
       startCommunicationTracking('FRM', 'MCP', 'Starting schema validation', { dataSize: JSON.stringify(data).length })
-      
+
       // Simulate validation processing time
       await new Promise(resolve => setTimeout(resolve, 500))
-      
+
       // Enhanced validation logic
       const isValid = data && typeof data === 'object'
       const errors: string[] = []
       const warnings: string[] = []
-      
+
       if (!data) {
         errors.push('No data provided for validation')
         return {
@@ -2317,7 +2318,7 @@ app.whenReady().then(() => {
           warnings
         }
       }
-      
+
       if (typeof data !== 'object') {
         errors.push('Data must be a JSON object')
         return {
@@ -2326,10 +2327,10 @@ app.whenReady().then(() => {
           warnings
         }
       }
-      
+
       // Check required top-level sections
       const requiredSections = ['metadata', 'input', 'modeling', 'method_selection', 'solution_and_analysis', 'validation', 'output_contract', 'novelty_assurance']
-      
+
       for (const section of requiredSections) {
         if (!data[section]) {
           errors.push(`Missing required section: ${section}`)
@@ -2337,14 +2338,14 @@ app.whenReady().then(() => {
           errors.push(`Section ${section} must be an object`)
         }
       }
-      
+
       // Check for extra properties (schema has additionalProperties: false)
       const allowedSections = new Set(requiredSections)
       const extraSections = Object.keys(data).filter(key => !allowedSections.has(key))
       if (extraSections.length > 0) {
         errors.push(`Extra properties not allowed: ${extraSections.join(', ')}`)
       }
-      
+
       // Basic metadata validation
       if (data.metadata) {
         if (!data.metadata.problem_id) {
@@ -2357,7 +2358,7 @@ app.whenReady().then(() => {
           errors.push('metadata.version is required')
         }
       }
-      
+
       // Basic input validation
       if (data.input) {
         if (!data.input.problem_summary) {
@@ -2376,7 +2377,7 @@ app.whenReady().then(() => {
           errors.push('input.constraints_goals is required')
         }
       }
-      
+
       // Basic modeling validation
       if (data.modeling) {
         if (!data.modeling.model_class) {
@@ -2389,7 +2390,7 @@ app.whenReady().then(() => {
           errors.push('modeling.equations must be a non-empty array')
         }
       }
-      
+
       // Basic method selection validation
       if (data.method_selection) {
         if (!data.method_selection.problem_type) {
@@ -2399,7 +2400,7 @@ app.whenReady().then(() => {
           errors.push('method_selection.chosen_methods must be a non-empty array')
         }
       }
-      
+
       // Basic validation section validation
       if (data.validation) {
         if (typeof data.validation.unit_consistency_check !== 'boolean') {
@@ -2412,7 +2413,7 @@ app.whenReady().then(() => {
           errors.push('validation.novelty_gate_pass must be true')
         }
       }
-      
+
       // Basic output contract validation
       if (data.output_contract) {
         if (!data.output_contract.sections_required || !Array.isArray(data.output_contract.sections_required)) {
@@ -2425,7 +2426,7 @@ app.whenReady().then(() => {
           errors.push('output_contract.safety_note is required')
         }
       }
-      
+
       // Basic novelty assurance validation
       if (data.novelty_assurance) {
         if (!data.novelty_assurance.prior_work) {
@@ -2444,18 +2445,18 @@ app.whenReady().then(() => {
           errors.push('novelty_assurance.redundancy_check.gate_pass must be true')
         }
       }
-      
+
       const result = {
         isValid: isValid && errors.length === 0,
         errors,
         warnings
       }
-      
-      endCommunicationTracking('FRM', 'MCP', 'Schema validation completed', { 
-        isValid: result.isValid, 
-        errorCount: errors.length 
+
+      endCommunicationTracking('FRM', 'MCP', 'Schema validation completed', {
+        isValid: result.isValid,
+        errorCount: errors.length
       })
-      
+
       return result
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
@@ -2477,11 +2478,11 @@ app.whenReady().then(() => {
     try {
       const fs = await import('fs')
       const path = await import('path')
-      
+
       const logPath = path.default.join(process.cwd(), 'generation.log')
       const timestamp = new Date().toISOString()
       const logLine = `[${timestamp}] ${logEntry}\n`
-      
+
       fs.default.appendFileSync(logPath, logLine)
       console.log('Generation logged:', logEntry)
     } catch (error) {

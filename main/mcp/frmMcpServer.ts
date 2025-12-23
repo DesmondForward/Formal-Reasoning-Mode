@@ -57,7 +57,7 @@ const validationErrorListSchema = z
       instancePath: z.string(),
       schemaPath: z.string(),
       keyword: z.string().optional(),
-      params: z.record(z.any()).optional(),
+      params: z.record(z.string(), z.unknown()).optional(),
     }),
   )
   .nonempty()
@@ -92,7 +92,7 @@ const submitOutputShape = {
 const submitResultSchema = z.object(submitOutputShape)
 
 const validationInputShape = {
-  document: z.record(z.any(), {
+  document: z.record(z.string(), z.unknown(), {
     invalid_type_error: 'document argument must be a JSON object',
   }),
 }
@@ -110,10 +110,10 @@ server.registerTool(
   {
     title: 'Validate Formal Reasoning Mode document',
     description: 'Validate an FRM payload against the Formal Reasoning Mode schema and receive granular issues.',
-    inputSchema: validationInputShape,
-    outputSchema: validationOutputShape,
+    inputSchema: z.object(validationInputShape) as any,
+    outputSchema: z.object(validationOutputShape) as any,
   },
-  async ({ document }) => handleValidate(document),
+  async ({ document }: { document: unknown }) => handleValidate(document),
 )
 
 server.registerTool(
@@ -121,12 +121,12 @@ server.registerTool(
   {
     title: 'Submit Formal Reasoning Mode case',
     description: 'Accept a valid FRM payload and surface identifying metadata.',
-    inputSchema: {
+    inputSchema: z.object({
       document: validationInputShape.document,
-    },
-    outputSchema: submitOutputShape,
+    }) as any,
+    outputSchema: z.object(submitOutputShape) as any,
   },
-  async ({ document }) => handleSubmit(document),
+  async ({ document }: { document: unknown }) => handleSubmit(document),
 )
 
 const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
@@ -138,7 +138,6 @@ const client = new Client(
   },
   {
     capabilities: {
-      tools: { list: true, call: true },
     },
   },
 )
