@@ -116,7 +116,7 @@ export const VisualizationPanel: React.FC<VisualizationPanelProps> = ({ data }) 
                 {method.name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
               </Badge>
               <div className="text-xs text-slate-500">
-                abs_tol: {method.tolerances?.abs_tol || 'N/A'}, 
+                abs_tol: {method.tolerances?.abs_tol || 'N/A'},
                 rel_tol: {method.tolerances?.rel_tol || 'N/A'}
               </div>
             </div>
@@ -150,12 +150,17 @@ export const VisualizationPanel: React.FC<VisualizationPanelProps> = ({ data }) 
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="flex justify-center space-x-4"
+          className="flex justify-center space-x-4 items-start"
         >
-          <Button className="btn-gradient">
-            <Play className="h-4 w-4 mr-2" />
-            Run Simulation
-          </Button>
+          <div className="flex flex-col items-center gap-2">
+            <Button className="btn-gradient opacity-80" disabled>
+              <Play className="h-4 w-4 mr-2" />
+              Run Simulation
+            </Button>
+            <span className="text-[10px] font-medium text-amber-600 dark:text-amber-400 uppercase tracking-wider bg-amber-100 dark:bg-amber-900/30 px-2 py-0.5 rounded-full">
+              Future Integration
+            </span>
+          </div>
           <Button variant="outline">
             <Download className="h-4 w-4 mr-2" />
             Export Results
