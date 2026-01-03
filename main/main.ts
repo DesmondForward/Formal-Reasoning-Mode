@@ -141,13 +141,9 @@ const getOpenAIConfig = () => {
 
   // Model-specific endpoint selection (ignores OPENAI_API_URL for GPT-5 models)
   const getApiUrl = (model: string) => {
-    // GPT-5 Pro models use /v1/responses endpoint
-    if (model.includes('gpt-5-pro')) {
-      return 'https://api.openai.com/v1/responses'
-    }
-    // Other GPT-5 models use /v1/chat/completions
+    // GPT-5 models (including Pro variants) use /v1/responses endpoint
     if (model.includes('gpt-5')) {
-      return 'https://api.openai.com/v1/chat/completions'
+      return 'https://api.openai.com/v1/responses'
     }
     // Default to standard chat completions endpoint
     return process.env.OPENAI_API_URL ?? 'https://api.openai.com/v1/chat/completions'
@@ -168,8 +164,8 @@ const getOpenAIConfig = () => {
     hasApiKey: !!config.apiKey,
     envOpenAIUrl: process.env.OPENAI_API_URL,
     isGpt5: model.includes('gpt-5'),
-    isGpt5Pro: model.includes('gpt-5-pro'),
-    endpointType: model.includes('gpt-5-pro') ? 'responses' : model.includes('gpt-5') ? 'chat/completions' : 'default'
+    isGpt5Pro: model.includes('gpt-5'), // Treat all GPT-5 as Pro/Responses capable
+    endpointType: model.includes('gpt-5') ? 'responses' : 'default'
   })
 
   return config
@@ -204,13 +200,9 @@ const getAIConfig = () => {
 
 // Helper function to get the correct API URL for OpenAI models
 const getOpenAIUrl = (model: string) => {
-  // GPT-5 Pro models use /v1/responses endpoint
-  if (model.includes('gpt-5-pro')) {
-    return 'https://api.openai.com/v1/responses'
-  }
-  // Other GPT-5 models use /v1/chat/completions
+  // GPT-5 models (including Pro variants) use /v1/responses endpoint
   if (model.includes('gpt-5')) {
-    return 'https://api.openai.com/v1/chat/completions'
+    return 'https://api.openai.com/v1/responses'
   }
   // Default to standard chat completions endpoint
   return process.env.OPENAI_API_URL ?? 'https://api.openai.com/v1/chat/completions'
@@ -265,11 +257,11 @@ const formatAIRequest = (provider: string, model: string, messages: any[], optio
       }
     case 'openai':
     default:
-      // Check if this is GPT-5 Pro (uses /v1/responses endpoint)
-      const isGpt5Pro = model.includes('gpt-5-pro')
+      // Check if this is GPT-5 (uses /v1/responses endpoint)
+      const isGpt5 = model.includes('gpt-5')
 
-      if (isGpt5Pro) {
-        // GPT-5 Pro uses different parameter structure for /v1/responses
+      if (isGpt5) {
+        // GPT-5 uses different parameter structure for /v1/responses
         return {
           url: baseUrl,
           data: {
@@ -1382,7 +1374,7 @@ const cleanValidation = (obj: unknown): unknown => {
   }
 
   const result = obj as Record<string, unknown>
-  
+
   if (result.expert_review && typeof result.expert_review === 'object') {
     const expertReview = result.expert_review as Record<string, unknown>
     if (!Array.isArray(expertReview.experts) || expertReview.experts.length === 0) {
@@ -1454,7 +1446,7 @@ const pingLLM = async () => {
       { role: 'user', content: 'Ping - respond with "OK" to confirm connection.' },
     ]
 
-    const isGpt5Pro = model.includes('gpt-5-pro')
+    const isGpt5Pro = model.includes('gpt-5')
     const providerLower = provider.toLowerCase()
 
     // Build request config based on provider and model type
