@@ -1,5 +1,7 @@
 import React from 'react'
 import { motion } from 'framer-motion'
+import 'katex/dist/katex.min.css'
+import { BlockMath } from 'react-katex'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -40,10 +42,8 @@ export const VisualizationPanel: React.FC<VisualizationPanelProps> = ({ data }) 
                 </span>
               )}
             </div>
-            <div className="font-mono text-lg text-center">
-              <span className="text-blue-600">{equation.lhs}</span>
-              <span className="mx-4">=</span>
-              <span className="text-green-600">{equation.rhs}</span>
+            <div className="text-center overflow-x-auto py-2">
+              <BlockMath math={`${equation.lhs} = ${equation.rhs}`} />
             </div>
           </motion.div>
         ))}
