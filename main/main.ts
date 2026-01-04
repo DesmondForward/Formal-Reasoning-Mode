@@ -267,7 +267,8 @@ const formatAIRequest = (provider: string, model: string, messages: any[], optio
           data: {
             model,
             input: messages,
-            max_output_tokens: options?.max_tokens || 272000,
+            max_output_tokens: options?.max_tokens || 100000,
+            background: true, // Enable async mode to avoid connection timeouts
             text: {
               format: {
                 type: 'json_object'
@@ -348,6 +349,54 @@ const retryWithBackoff = async <T>(
   }
 
   throw lastError!
+}
+
+// Helper function to poll for background mode response completion
+const pollForBackgroundResponse = async (
+  responseId: string,
+  apiKey: string,
+  maxWaitMs: number = 2400000, // 40 minutes max wait
+  pollIntervalMs: number = 5000 // Poll every 5 seconds
+): Promise<any> => {
+  const startTime = Date.now()
+  const pollUrl = `https://api.openai.com/v1/responses/${responseId}`
+
+  console.log(`Polling for background response: ${responseId}`)
+
+  while (Date.now() - startTime < maxWaitMs) {
+    try {
+      const response = await axios.get(pollUrl, {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        timeout: 30000
+      })
+
+      const status = response.data?.status
+      console.log(`Background response status: ${status}`)
+
+      if (status === 'completed') {
+        console.log('Background response completed successfully')
+        return response.data
+      } else if (status === 'failed' || status === 'cancelled') {
+        throw new Error(`Background response ${status}: ${JSON.stringify(response.data?.error || response.data)}`)
+      }
+
+      // Status is 'queued' or 'in_progress' - continue polling
+      await new Promise(resolve => setTimeout(resolve, pollIntervalMs))
+    } catch (error: any) {
+      // If it's a network error, retry polling
+      if (error.code === 'ECONNRESET' || error.code === 'ETIMEDOUT') {
+        console.log(`Polling network error (${error.code}), retrying...`)
+        await new Promise(resolve => setTimeout(resolve, pollIntervalMs))
+        continue
+      }
+      throw error
+    }
+  }
+
+  throw new Error(`Background response timed out after ${maxWaitMs / 60000} minutes`)
 }
 
 const DEFAULT_SYSTEM_PROMPT = `You are an assistant that creates Formal Reasoning Mode (FRM) problem JSON documents.
@@ -1732,9 +1781,9 @@ const generateAISchema = async (options: SchemaGenerationOptions = {}) => {
   // Determine timeout based on provider and model
   // Gemini and GPT-5-pro models need ~40 minutes for long generation tasks
   const isGemini = provider.toLowerCase() === 'google'
-  const isGpt5Pro = model.includes('gpt-5-pro')
+  const isGpt5Pro = model.includes('gpt-5')
   const requestTimeout = (isGemini || isGpt5Pro)
-    ? 2400000  // 40 minutes for Gemini and GPT-5-pro (40 * 60 * 1000)
+    ? 2400000  // 40 minutes for Gemini and GPT-5 models (40 * 60 * 1000)
     : 2700000  // 45 minutes for other models (45 * 60 * 1000)
 
   try {
@@ -1772,16 +1821,16 @@ const generateAISchema = async (options: SchemaGenerationOptions = {}) => {
       // Configure agents for long-running requests with keep-alive
       // Use aggressive keep-alive settings to prevent connection resets
       const httpsAgent = new https.Agent({
-        keepAlive: true,
-        keepAliveMsecs: 30000, // Keep connections alive for 30 seconds (reduced from 60)
+        keepAlive: false,
+        // keepAliveMsecs: 30000,
         timeout: requestTimeout, // Use provider-specific timeout
         maxSockets: 1, // Use single connection to avoid connection pool issues
         maxFreeSockets: 1,
       })
 
       const httpAgent = new http.Agent({
-        keepAlive: true,
-        keepAliveMsecs: 30000,
+        keepAlive: false,
+        // keepAliveMsecs: 30000,
         timeout: requestTimeout, // Use provider-specific timeout
         maxSockets: 1,
         maxFreeSockets: 1,
@@ -1809,8 +1858,8 @@ const generateAISchema = async (options: SchemaGenerationOptions = {}) => {
           const response = await axios.post(requestConfig.url, requestConfig.data, {
             headers: {
               ...requestConfig.headers,
-              'Connection': 'keep-alive', // Explicitly request keep-alive
-              'Keep-Alive': 'timeout=30', // Request 30 second keep-alive from server
+              // 'Connection': 'keep-alive', 
+              // 'Keep-Alive': 'timeout=30',
             },
             timeout: requestTimeout, // Use provider-specific timeout
             httpsAgent: httpsAgent,
@@ -1866,25 +1915,48 @@ const generateAISchema = async (options: SchemaGenerationOptions = {}) => {
       responseText = payload?.content?.[0]?.text || ''
     } else {
       // OpenAI format - handle both old and new API formats
-      const isGpt5Pro = model.includes('gpt-5-pro')
+      const isGpt5Pro = model.includes('gpt-5')
 
       if (isGpt5Pro) {
-        // GPT-5 Pro uses /v1/responses endpoint with different structure
-        if (payload?.status === 'incomplete') {
+        // GPT-5 uses /v1/responses endpoint with background mode
+        // Check if this is a background response (status will be 'queued' or 'in_progress')
+        if (payload?.status === 'queued' || payload?.status === 'in_progress') {
+          logToFile('Background mode detected, polling for completion...', {
+            status: payload.status,
+            id: payload.id
+          })
+
+          // Poll for completion
+          const completedPayload = await pollForBackgroundResponse(
+            payload.id,
+            process.env.OPENAI_API_KEY || '',
+            requestTimeout, // Use same timeout as the original request
+            5000 // Poll every 5 seconds
+          )
+
+          logToFile('Background response completed:', {
+            keys: Object.keys(completedPayload),
+            status: completedPayload.status
+          })
+
+          // Use the completed payload for extracting text
+          responseText = extractResponseText(completedPayload)
+        } else if (payload?.status === 'incomplete') {
           const error = new Error(`OpenAI response was incomplete: ${payload.status}`)
           endCommunicationTracking('FRM', model, 'Response incomplete', { reason: payload.status }, true)
           throw error
+        } else {
+          // Direct response (status === 'completed' or no status for sync)
+          logToFile('GPT-5 Pro payload structure:', {
+            keys: Object.keys(payload),
+            hasText: 'text' in payload,
+            hasOutput: 'output' in payload,
+            textType: typeof payload.text,
+            outputType: typeof payload.output,
+            status: payload.status
+          })
+          responseText = extractResponseText(payload)
         }
-
-        // Try to extract text from the new format
-        logToFile('GPT-5 Pro payload structure:', {
-          keys: Object.keys(payload),
-          hasText: 'text' in payload,
-          hasOutput: 'output' in payload,
-          textType: typeof payload.text,
-          outputType: typeof payload.output
-        })
-        responseText = extractResponseText(payload)
       } else {
         // Standard OpenAI models use /v1/chat/completions
         if (payload?.choices?.[0]?.finish_reason === 'incomplete') {
