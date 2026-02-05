@@ -536,7 +536,14 @@ General constraints:
       "Analysis",
       "Conclusion",
       "References",
-      "Glossary"
+      "Glossary",
+	  "Results"Validation",
+	  "Actionable Recommendation",
+	  "Refinement Hooks",
+	  "Novelty Statement",
+	  "Prior Work Comparison",
+	  "Redundancy Check",
+	  "Evidence & Citations"
     ],
     "formatting": {
       "math_notation": "latex",

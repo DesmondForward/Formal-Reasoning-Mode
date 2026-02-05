@@ -956,22 +956,24 @@
           "items": {
             "type": "string",
             "enum": [
+              "Abstract",
+              "Introduction",
+              "Prior Work Comparison",
+              "MethodStatement",
               "VariablesAndUnitsTable",
               "ModelEquations",
-              "MethodStatement",
               "SolutionDerivation",
-              "Analysis",
-              "Conclusion",
-              "References",
-              "Glossary",
               "Results",
+              "Analysis",
               "Validation",
+              "Conclusion",
               "ActionableRecommendation",
-              "RefinementHooks",
               "Novelty Statement",
-              "Prior Work Comparison",
+              "References",
+              "Evidence & Citations",
+              "Glossary",
               "Redundancy Check",
-              "Evidence & Citations"
+              "RefinementHooks"
             ]
           }
         },

@@ -88,7 +88,7 @@ export function deepClone<T>(value: T): T {
  */
 export function deepMerge<T extends Record<string, any>>(target: T, source: DeepPartial<T>): T {
   const result = { ...target }
-  
+
   for (const key in source) {
     if (source[key] !== undefined) {
       if (
@@ -105,7 +105,7 @@ export function deepMerge<T extends Record<string, any>>(target: T, source: Deep
       }
     }
   }
-  
+
   return result
 }
 
@@ -118,14 +118,14 @@ export function isFRMData(value: unknown): value is FRMData {
   }
 
   const obj = value as Record<string, unknown>
-  
+
   // Check required top-level sections
   const requiredSections = [
-    'metadata', 'input', 'modeling', 'method_selection', 
+    'metadata', 'input', 'modeling', 'method_selection',
     'solution_and_analysis', 'validation', 'output_contract', 'novelty_assurance'
   ]
-  
-  return requiredSections.every(section => 
+
+  return requiredSections.every(section =>
     section in obj && typeof obj[section] === 'object' && obj[section] !== null
   )
 }
@@ -155,11 +155,11 @@ export function validateArrayUpdate<T>(
   if (!Array.isArray(array)) {
     return { isValid: false, error: 'Target is not an array' }
   }
-  
+
   if (index < 0 || index >= array.length) {
     return { isValid: false, error: 'Index out of bounds' }
   }
-  
+
   return { isValid: true }
 }
 
@@ -384,23 +384,24 @@ export type SourceTypeOption = typeof SOURCE_TYPE_OPTIONS[number]
 
 // Output contract related option lists
 export const OUTPUT_SECTION_OPTIONS = [
+  'Abstract',
+  'Introduction',
+  'Prior Work Comparison',
+  'MethodStatement',
   'VariablesAndUnitsTable',
   'ModelEquations',
-  'MethodStatement',
   'SolutionDerivation',
-  'Analysis',
-  'Conclusion',
-  'References',
-  'Glossary',
-  // Additional sections present in frm_schema.json
   'Results',
+  'Analysis',
   'Validation',
+  'Conclusion',
   'ActionableRecommendation',
-  'RefinementHooks',
   'Novelty Statement',
-  'Prior Work Comparison',
-  'Redundancy Check',
+  'References',
   'Evidence & Citations',
+  'Glossary',
+  'Redundancy Check',
+  'RefinementHooks',
 ] as const
 export type OutputSectionOption = typeof OUTPUT_SECTION_OPTIONS[number]
 
@@ -903,7 +904,7 @@ export const EMPTY_FRM_DATA: DeepReadonly<FRMData> = {
       },
     },
   },
-    modeling: {
+  modeling: {
     model_class: 'ODE',
     variables: [
       {
@@ -1279,7 +1280,7 @@ export function migrateFRMData(data: unknown, fromVersion?: string, toVersion = 
  */
 export function validateFRMDataStructure(data: unknown): { isValid: boolean; errors: string[] } {
   const errors: string[] = []
-  
+
   if (!isFRMData(data)) {
     errors.push('Invalid FRMData structure: missing required sections')
     return { isValid: false, errors }
