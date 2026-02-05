@@ -873,7 +873,7 @@
             "sections_required": {
               "type": "array",
               "contains": {
-                "const": "VariablesAndUnitsTable"
+                "const": "Variables And Units Table"
               }
             }
           }
@@ -883,7 +883,7 @@
             "sections_required": {
               "type": "array",
               "contains": {
-                "const": "ModelEquations"
+                "const": "Model Equations"
               }
             }
           }
@@ -893,7 +893,7 @@
             "sections_required": {
               "type": "array",
               "contains": {
-                "const": "MethodStatement"
+                "const": "Method Statement"
               }
             }
           }
@@ -903,7 +903,7 @@
             "sections_required": {
               "type": "array",
               "contains": {
-                "const": "SolutionDerivation"
+                "const": "Solution Derivation"
               }
             }
           }
