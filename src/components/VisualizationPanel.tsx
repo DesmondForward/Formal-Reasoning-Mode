@@ -161,10 +161,15 @@ export const VisualizationPanel: React.FC<VisualizationPanelProps> = ({ data }) 
               Future Integration
             </span>
           </div>
-          <Button variant="outline">
-            <Download className="h-4 w-4 mr-2" />
-            Export Results
-          </Button>
+          <div className="flex flex-col items-center gap-2">
+            <Button variant="outline" disabled>
+              <Download className="h-4 w-4 mr-2" />
+              Export Results
+            </Button>
+            <span className="text-[10px] font-medium text-amber-600 dark:text-amber-400 uppercase tracking-wider bg-amber-100 dark:bg-amber-900/30 px-2 py-0.5 rounded-full">
+              Future Integration
+            </span>
+          </div>
         </motion.div>
 
         {/* Model Overview */}
