@@ -474,8 +474,8 @@ export interface ChosenMethod {
   novelty_diff?: string
   novelty_tag?: 'new' | 'variant' | 'borrowed' | 'baseline'
   tolerances?: {
-    absolute: number
-    relative: number
+    abs_tol: number
+    rel_tol: number
   }
 }
 
@@ -709,13 +709,7 @@ export interface FRMData {
   }
   method_selection: {
     problem_type: ProblemTypeOption
-    chosen_methods: Array<{
-      name: string
-      justification: string
-      prior_art_citations?: string[]
-      novelty_diff?: string
-      novelty_tag?: NoveltyTagOption
-    }>
+    chosen_methods: ChosenMethod[]
     search_integration?: SearchIntegration
   }
   solution_and_analysis: {
