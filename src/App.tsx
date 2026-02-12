@@ -35,21 +35,22 @@ import { CommunicationProvider, useCommunicationContext } from '@/contexts/Commu
 import frmSchema from '/frm_schema.json'
 import { generateSchemaProblem } from '@/utils/schemaGenerator'
 import { generationLogger } from '@/utils/generationLogger'
+import { debugLog } from '@/utils/debugLogger'
 
 import './App.css'
 
 const AppContent: React.FC = () => {
-  console.log('AppContent component rendering...')
+  debugLog('AppContent component rendering...')
   
   try {
     const { data, updateData, setData } = useFRMData()
-    console.log('FRM data loaded:', data)
+    debugLog('FRM data loaded:', data)
     
     const { validation, validateData, validateUnknown } = useValidation(frmSchema)
-    console.log('Validation loaded:', validation)
+    debugLog('Validation loaded:', validation)
     
     const { events } = useCommunicationContext()
-    console.log('Communication loaded:', { eventsCount: events.length })
+    debugLog('Communication loaded:', { eventsCount: events.length })
     
     const [activeTab, setActiveTab] = useState('editor')
     const [isGenerating, setIsGenerating] = useState(false)
@@ -60,10 +61,10 @@ const AppContent: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true)
     const { theme, toggleTheme } = useTheme()
     
-    console.log('App state:', { activeTab, isLoading, theme })
+    debugLog('App state:', { activeTab, isLoading, theme })
 
     useEffect(() => {
-      console.log('useEffect: validateData called with data:', data)
+      debugLog('useEffect: validateData called with data:', data)
       const runValidation = async () => {
         try {
           await validateData(data)
@@ -76,7 +77,7 @@ const AppContent: React.FC = () => {
       
       // Simulate loading time to show loading screen
       const timer = setTimeout(() => {
-        console.log('useEffect: Setting isLoading to false')
+        debugLog('useEffect: Setting isLoading to false')
         setIsLoading(false)
       }, 1000)
       
@@ -85,7 +86,7 @@ const AppContent: React.FC = () => {
 
     // Show loading screen while app is initializing
     if (isLoading) {
-      console.log('App: Rendering loading screen')
+      debugLog('App: Rendering loading screen')
       return (
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
           <div className="flex items-center space-x-4">
@@ -96,7 +97,7 @@ const AppContent: React.FC = () => {
       )
     }
 
-    console.log('App: Rendering main UI')
+    debugLog('App: Rendering main UI')
 
     const handleGenerateSchema = async (domain?: string, subDomain?: string) => {
       setIsGenerating(true)
@@ -394,10 +395,10 @@ const AppContent: React.FC = () => {
             onGenerateSchema={() => handleGenerateSchema(selectedDomain || undefined, subDomainDescription || undefined)}
             isGenerating={isGenerating}
             onTimerStart={() => {
-              console.log('Generation timer started')
+              debugLog('Generation timer started')
             }}
             onTimerStop={() => {
-              console.log('Generation timer stopped')
+              debugLog('Generation timer stopped')
             }}
           />
         </div>

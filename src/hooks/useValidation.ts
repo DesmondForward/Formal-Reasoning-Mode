@@ -5,6 +5,7 @@ import addFormats from 'ajv-formats'
 
 import type { FRMData } from '@/data/schema'
 import { validateFRMDataStructure, isFRMData } from '@/data/schema'
+import { debugLog } from '@/utils/debugLogger'
 
 export interface ValidationError {
   instancePath: string
@@ -224,7 +225,7 @@ export const useValidation = (schema: any) => {
 
       try {
         // Run schema validation
-        console.log('Running AJV schema validation on data:', {
+        debugLog('Running AJV schema validation on data:', {
           hasMetadata: !!candidate.metadata,
           hasInput: !!candidate.input,
           hasModeling: !!candidate.modeling,
@@ -237,7 +238,7 @@ export const useValidation = (schema: any) => {
         })
         
         // Log detailed data structure for debugging
-        console.log('Detailed data structure:', {
+        debugLog('Detailed data structure:', {
           metadata: candidate.metadata ? {
             problem_id: candidate.metadata.problem_id,
             domain: candidate.metadata.domain,
@@ -257,7 +258,7 @@ export const useValidation = (schema: any) => {
         schemaValid = validateFn(candidate)
         schemaErrors = normalizeErrors(validateFn.errors)
         
-        console.log('AJV validation result:', {
+        debugLog('AJV validation result:', {
           isValid: schemaValid,
           errorCount: schemaErrors.length,
           errors: schemaErrors.map(e => ({ 
@@ -271,7 +272,7 @@ export const useValidation = (schema: any) => {
         // If validation failed but no errors were captured, provide more details
         if (!schemaValid && schemaErrors.length === 0) {
           console.warn('Schema validation failed but no specific errors captured')
-          console.log('Raw AJV errors:', validateFn.errors)
+          debugLog('Raw AJV errors:', validateFn.errors)
           schemaErrors = [{
             instancePath: '',
             schemaPath: '',
