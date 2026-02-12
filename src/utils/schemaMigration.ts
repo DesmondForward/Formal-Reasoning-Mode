@@ -138,7 +138,6 @@ const migrationSteps: Record<string, MigrationStep[]> = {
     }
   ],
   'v1.0': [
-    // Migration step for Citation authors field change (array to string)
     {
       version: 'v1.0.1',
       description: 'Convert Citation authors from array to string format',
@@ -166,8 +165,9 @@ const migrationSteps: Record<string, MigrationStep[]> = {
         }
         return true
       }
-    },
-    // Migration step for symbolic regression algorithm options
+    }
+  ],
+  'v1.0.1': [
     {
       version: 'v1.0.2',
       description: 'Update symbolic regression algorithm options',
@@ -188,8 +188,9 @@ const migrationSteps: Record<string, MigrationStep[]> = {
         }
         return true
       }
-    },
-    // Migration step for novelty metrics options
+    }
+  ],
+  'v1.0.2': [
     {
       version: 'v1.0.3',
       description: 'Update novelty metrics options',
@@ -223,7 +224,7 @@ export function migrateSchema(
   try {
     const detectedVersion = fromVersion || detectSchemaVersion(data)
     
-    if (!detectedVersion) {
+    if (!detectedVersion || detectedVersion === 'unknown') {
       return {
         success: false,
         data: createEmptyFRMData(),
@@ -252,7 +253,13 @@ export function migrateSchema(
     const steps = getMigrationPath(detectedVersion, toVersion)
     
     if (steps.length === 0) {
-      warnings.push(`No migration path found from ${detectedVersion} to ${toVersion}`)
+      return {
+        success: false,
+        data: createEmptyFRMData(),
+        warnings: [],
+        errors: [`No migration path found from ${detectedVersion} to ${toVersion}`],
+        migrationSteps: []
+      }
     }
 
     // Apply migration steps
@@ -311,7 +318,7 @@ function getMigrationPath(fromVersion: string, toVersion: string): MigrationStep
   
   // Simple linear migration for now
   // In a more complex system, this would use a graph-based approach
-  const versions = ['v0.9', 'v1.0']
+  const versions = ['v0.9', 'v1.0', 'v1.0.1', 'v1.0.2', 'v1.0.3']
   const fromIndex = versions.indexOf(fromVersion)
   const toIndex = versions.indexOf(toVersion)
   

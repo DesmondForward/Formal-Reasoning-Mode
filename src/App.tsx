@@ -58,7 +58,6 @@ const AppContent: React.FC = () => {
     const [selectedDomain, setSelectedDomain] = useState<string>('')
     const [subDomainDescription, setSubDomainDescription] = useState<string>('')
     const [isLoading, setIsLoading] = useState(true)
-    const [generationStartTime, setGenerationStartTime] = useState<number | null>(null)
     const { theme, toggleTheme } = useTheme()
     
     console.log('App state:', { activeTab, isLoading, theme })
@@ -101,7 +100,7 @@ const AppContent: React.FC = () => {
 
     const handleGenerateSchema = async (domain?: string, subDomain?: string) => {
       setIsGenerating(true)
-      setGenerationStartTime(Date.now())
+      const generationStartedAt = Date.now()
       
       try {
         const options: { domain?: string; scenarioHint?: string } = {}
@@ -115,21 +114,19 @@ const AppContent: React.FC = () => {
           setData(generationValidation.data)
 
           // Log successful generation
-          if (generationStartTime) {
-            const duration = Date.now() - generationStartTime
-            // Get the model name from the most recent communication event
-            const recentEvents = events.filter(e => e.source === 'FRM' && e.target !== 'MCP')
-            const modelName = recentEvents.length > 0 ? recentEvents[recentEvents.length - 1].target : 'AI Model'
-            
-            generationLogger.logGeneration({
-              model: modelName,
-              domain: domain || 'Unknown',
-              subDomain: subDomain,
-              duration,
-              success: true,
-              source: source as 'ai' | 'fallback'
-            })
-          }
+          const duration = Date.now() - generationStartedAt
+          // Get the model name from the most recent communication event
+          const recentEvents = events.filter(e => e.source === 'FRM' && e.target !== 'MCP')
+          const modelName = recentEvents.length > 0 ? recentEvents[recentEvents.length - 1].target : 'AI Model'
+          
+          generationLogger.logGeneration({
+            model: modelName,
+            domain: domain || 'Unknown',
+            subDomain: subDomain,
+            duration,
+            success: true,
+            source: source as 'ai' | 'fallback'
+          })
 
           if (source === 'fallback' && errorMessage) {
             const detail = errorMessage
@@ -148,22 +145,20 @@ const AppContent: React.FC = () => {
           console.error('Validation failed:', generationValidation)
           
           // Log failed generation
-          if (generationStartTime) {
-            const duration = Date.now() - generationStartTime
-            // Get the model name from the most recent communication event
-            const recentEvents = events.filter(e => e.source === 'FRM' && e.target !== 'MCP')
-            const modelName = recentEvents.length > 0 ? recentEvents[recentEvents.length - 1].target : 'AI Model'
-            
-            generationLogger.logGeneration({
-              model: modelName,
-              domain: domain || 'Unknown',
-              subDomain: subDomain,
-              duration,
-              success: false,
-              errorMessage: 'Schema validation failed',
-              source: source as 'ai' | 'fallback'
-            })
-          }
+          const duration = Date.now() - generationStartedAt
+          // Get the model name from the most recent communication event
+          const recentEvents = events.filter(e => e.source === 'FRM' && e.target !== 'MCP')
+          const modelName = recentEvents.length > 0 ? recentEvents[recentEvents.length - 1].target : 'AI Model'
+          
+          generationLogger.logGeneration({
+            model: modelName,
+            domain: domain || 'Unknown',
+            subDomain: subDomain,
+            duration,
+            success: false,
+            errorMessage: 'Schema validation failed',
+            source: source as 'ai' | 'fallback'
+          })
           
           let summary = 'Unknown validation failure.'
           if (generationValidation.errors && generationValidation.errors.length > 0) {
@@ -196,22 +191,20 @@ const AppContent: React.FC = () => {
         console.error('Failed to generate schema:', error)
         
         // Log error generation
-        if (generationStartTime) {
-          const duration = Date.now() - generationStartTime
-          // Get the model name from the most recent communication event
-          const recentEvents = events.filter(e => e.source === 'FRM' && e.target !== 'MCP')
-          const modelName = recentEvents.length > 0 ? recentEvents[recentEvents.length - 1].target : 'AI Model'
-          
-          generationLogger.logGeneration({
-            model: modelName,
-            domain: domain || 'Unknown',
-            subDomain: subDomain,
-            duration,
-            success: false,
-            errorMessage: error instanceof Error ? error.message : 'Unknown error',
-            source: 'ai'
-          })
-        }
+        const duration = Date.now() - generationStartedAt
+        // Get the model name from the most recent communication event
+        const recentEvents = events.filter(e => e.source === 'FRM' && e.target !== 'MCP')
+        const modelName = recentEvents.length > 0 ? recentEvents[recentEvents.length - 1].target : 'AI Model'
+        
+        generationLogger.logGeneration({
+          model: modelName,
+          domain: domain || 'Unknown',
+          subDomain: subDomain,
+          duration,
+          success: false,
+          errorMessage: error instanceof Error ? error.message : 'Unknown error',
+          source: 'ai'
+        })
         
         const message = error instanceof Error ? error.message : 'Unknown error generating schema.'
 
@@ -226,7 +219,6 @@ const AppContent: React.FC = () => {
         }
       } finally {
         setIsGenerating(false)
-        setGenerationStartTime(null)
       }
     }
 

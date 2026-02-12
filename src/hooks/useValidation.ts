@@ -60,20 +60,14 @@ const validationCache = new Map<string, ValidationResult>()
 const CACHE_MAX_SIZE = 100
 const CACHE_CLEANUP_THRESHOLD = 0.25 // Clean up 25% when limit exceeded
 
-// Create efficient cache key from essential validation properties
-const createValidationCacheKey = (data: FRMData): string => {
-  const keyParts = [
-    data.metadata?.problem_id || '',
-    data.metadata?.domain || '',
-    data.metadata?.version || '',
-    data.input?.problem_summary?.slice(0, 100) || '',
-    data.modeling?.model_class || '',
-    data.modeling?.equations?.length || 0,
-    data.input?.unknowns?.length || 0,
-    data.method_selection?.chosen_methods?.length || 0,
-    data.novelty_assurance?.citations?.length || 0
-  ]
-  return keyParts.join('|')
+// Create a cache key that reflects the full data payload to avoid stale results.
+const createValidationCacheKey = (data: FRMData): string | null => {
+  try {
+    return JSON.stringify(data)
+  } catch (error) {
+    console.warn('Failed to serialize validation cache key, skipping cache:', error)
+    return null
+  }
 }
 
 export const useValidation = (schema: any) => {
@@ -183,7 +177,7 @@ export const useValidation = (schema: any) => {
       const cacheKey = createValidationCacheKey(candidate)
       
       // Check cache first
-      if (validationCache.has(cacheKey)) {
+      if (cacheKey && validationCache.has(cacheKey)) {
         const cachedResult = validationCache.get(cacheKey)!
         setValidation(cachedResult)
         return cachedResult
@@ -194,26 +188,29 @@ export const useValidation = (schema: any) => {
         if (window.electronAPI?.validateSchema) {
           const ipcResult = await window.electronAPI.validateSchema(candidate)
           
+          const ipcErrors = Array.isArray(ipcResult.errors)
+            ? ipcResult.errors.map((error: unknown) => String(error))
+            : []
+          const ipcWarnings = Array.isArray(ipcResult.warnings)
+            ? ipcResult.warnings.map((warning: unknown) => String(warning))
+            : []
+
           const result: ValidationResult = {
             isValid: ipcResult.isValid,
-            errors: ipcResult.errors.map(error => ({
+            errors: ipcErrors.map((error: string) => ({
               instancePath: '',
               schemaPath: '',
               keyword: 'ipc',
               params: {},
               message: error,
             })),
-            warnings: ipcResult.warnings.map(warning => ({
-              instancePath: '',
-              schemaPath: '',
-              keyword: 'ipc',
-              params: {},
-              message: warning,
-            })),
+            warnings: ipcWarnings,
           }
 
           // Cache the result
-          validationCache.set(cacheKey, result)
+          if (cacheKey) {
+            validationCache.set(cacheKey, result)
+          }
           setValidation(result)
           return result
         }
@@ -320,7 +317,9 @@ export const useValidation = (schema: any) => {
       }
 
       // Cache the result
-      validationCache.set(cacheKey, result)
+      if (cacheKey) {
+        validationCache.set(cacheKey, result)
+      }
       
       // Limit cache size to prevent memory leaks
       if (validationCache.size > CACHE_MAX_SIZE) {
