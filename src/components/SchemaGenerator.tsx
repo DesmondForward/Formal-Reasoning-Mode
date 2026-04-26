@@ -14,6 +14,7 @@ interface SchemaGeneratorProps {
 
 export const SchemaGenerator: React.FC<SchemaGeneratorProps> = ({ onGenerate, onGenerateAI, isGenerating = false }) => {
   const [selectedDomain, setSelectedDomain] = useState<string>('')
+  const [subDomainDescription, setSubDomainDescription] = useState<string>('')
   const examples = [
     {
       id: 'seir',
@@ -153,6 +154,8 @@ export const SchemaGenerator: React.FC<SchemaGeneratorProps> = ({ onGenerate, on
               <DomainSelector
                 value={selectedDomain}
                 onValueChange={setSelectedDomain}
+                subDomainValue={subDomainDescription}
+                onSubDomainChange={setSubDomainDescription}
                 className="max-w-md mx-auto"
               />
               <Button

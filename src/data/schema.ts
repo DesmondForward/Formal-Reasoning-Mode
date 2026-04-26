@@ -51,36 +51,20 @@ export type SectionShape<K extends SectionKey> = FRMData[K] extends Record<strin
   : never
 
 /**
- * Performance-optimized deep clone with caching for repeated operations.
- * When `structuredClone` is available it is used directly; otherwise a JSON 
- * fallback is applied. Includes memoization for frequently cloned objects.
+ * Deep clone helper for creating fresh mutable data instances.
+ * Avoid memoizing clones here: callers mutate the returned data, so returning a
+ * cached clone would leak state between otherwise independent FRM documents.
  */
-const cloneCache = new WeakMap<object, object>()
-
 export function deepClone<T>(value: T): T {
   if (value === null || typeof value !== 'object') {
     return value
   }
 
-  // Check cache for previously cloned objects
-  if (cloneCache.has(value as object)) {
-    return cloneCache.get(value as object) as T
-  }
-
-  let result: T
-
   if (typeof globalThis.structuredClone === 'function') {
-    result = globalThis.structuredClone(value) as T
-  } else {
-    result = JSON.parse(JSON.stringify(value)) as T
+    return globalThis.structuredClone(value) as T
   }
 
-  // Cache the result for future use
-  if (typeof value === 'object' && value !== null) {
-    cloneCache.set(value as object, result as object)
-  }
-
-  return result
+  return JSON.parse(JSON.stringify(value)) as T
 }
 
 /**
@@ -474,8 +458,8 @@ export interface ChosenMethod {
   novelty_diff?: string
   novelty_tag?: 'new' | 'variant' | 'borrowed' | 'baseline'
   tolerances?: {
-    abs_tol: number
-    rel_tol: number
+    absolute: number
+    relative: number
   }
 }
 

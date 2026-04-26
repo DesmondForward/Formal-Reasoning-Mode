@@ -2325,6 +2325,89 @@ const userDataPath = app.getPath('userData')
 const cachePath = join(userDataPath, 'cache')
 app.setPath('cache', cachePath)
 
+type RendererValidationError = {
+  instancePath: string
+  schemaPath: string
+  keyword: string
+  params: Record<string, unknown>
+  message: string
+}
+
+const getPayloadSize = (value: unknown) => {
+  try {
+    return JSON.stringify(value)?.length ?? 0
+  } catch {
+    return 0
+  }
+}
+
+const getNestedRecord = (value: unknown, key: string): Record<string, unknown> | undefined => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return undefined
+  }
+
+  const child = (value as Record<string, unknown>)[key]
+  return child && typeof child === 'object' && !Array.isArray(child)
+    ? child as Record<string, unknown>
+    : undefined
+}
+
+const hasArrayItems = (value: Record<string, unknown> | undefined, key: string) =>
+  Array.isArray(value?.[key]) && (value[key] as unknown[]).length > 0
+
+const createValidationWarnings = (document: unknown): string[] => {
+  const modeling = getNestedRecord(document, 'modeling')
+  const input = getNestedRecord(document, 'input')
+  const methodSelection = getNestedRecord(document, 'method_selection')
+  const noveltyAssurance = getNestedRecord(document, 'novelty_assurance')
+  const priorWork = getNestedRecord(noveltyAssurance, 'prior_work')
+  const redundancyCheck = getNestedRecord(noveltyAssurance, 'redundancy_check')
+
+  const warnings: string[] = []
+
+  if (!hasArrayItems(modeling, 'equations')) {
+    warnings.push('No equations defined in the model.')
+  }
+
+  if (!hasArrayItems(input, 'unknowns')) {
+    warnings.push('No unknown variables defined.')
+  }
+
+  if (!hasArrayItems(methodSelection, 'chosen_methods')) {
+    warnings.push('No solution methods selected.')
+  }
+
+  if (!hasArrayItems(noveltyAssurance, 'citations')) {
+    warnings.push('No citations provided for novelty assurance.')
+  }
+
+  if (!hasArrayItems(noveltyAssurance, 'novelty_claims')) {
+    warnings.push('No novelty claims defined.')
+  }
+
+  if (typeof priorWork?.literature_corpus_summary !== 'string' || priorWork.literature_corpus_summary.trim().length === 0) {
+    warnings.push('Literature corpus summary is missing.')
+  }
+
+  if (redundancyCheck?.gate_pass === false) {
+    warnings.push('Novelty gate has not passed - work may be redundant.')
+  }
+
+  return warnings
+}
+
+const createValidationErrorResult = (message: string, keyword = 'type') => ({
+  isValid: false,
+  errors: [{
+    instancePath: '/',
+    schemaPath: '',
+    keyword,
+    params: {},
+    message,
+  }] satisfies RendererValidationError[],
+  warnings: [] as string[],
+})
+
 app.whenReady().then(() => {
   createWindow()
 
@@ -2410,158 +2493,36 @@ app.whenReady().then(() => {
     }
   })
 
-  ipcMain.handle('validate-schema', async (_event, data: any) => {
+  ipcMain.handle('validate-schema', async (_event, data: unknown) => {
     try {
-      startCommunicationTracking('FRM', 'MCP', 'Starting schema validation', { dataSize: JSON.stringify(data).length })
+      startCommunicationTracking('FRM', 'MCP', 'Starting schema validation', { dataSize: getPayloadSize(data) })
 
-      // Simulate validation processing time
-      await new Promise(resolve => setTimeout(resolve, 500))
+      if (!data || typeof data !== 'object' || Array.isArray(data)) {
+        const result = createValidationErrorResult('Data must be a JSON object')
 
-      // Enhanced validation logic
-      const isValid = data && typeof data === 'object'
-      const errors: string[] = []
-      const warnings: string[] = []
+        endCommunicationTracking('FRM', 'MCP', 'Schema validation completed', {
+          isValid: result.isValid,
+          errorCount: result.errors.length
+        })
 
-      if (!data) {
-        errors.push('No data provided for validation')
-        return {
-          isValid: false,
-          errors,
-          warnings
-        }
+        return result
       }
 
-      if (typeof data !== 'object') {
-        errors.push('Data must be a JSON object')
-        return {
-          isValid: false,
-          errors,
-          warnings
-        }
-      }
-
-      // Check required top-level sections
-      const requiredSections = ['metadata', 'input', 'modeling', 'method_selection', 'solution_and_analysis', 'validation', 'output_contract', 'novelty_assurance']
-
-      for (const section of requiredSections) {
-        if (!data[section]) {
-          errors.push(`Missing required section: ${section}`)
-        } else if (typeof data[section] !== 'object') {
-          errors.push(`Section ${section} must be an object`)
-        }
-      }
-
-      // Check for extra properties (schema has additionalProperties: false)
-      const allowedSections = new Set(requiredSections)
-      const extraSections = Object.keys(data).filter(key => !allowedSections.has(key))
-      if (extraSections.length > 0) {
-        errors.push(`Extra properties not allowed: ${extraSections.join(', ')}`)
-      }
-
-      // Basic metadata validation
-      if (data.metadata) {
-        if (!data.metadata.problem_id) {
-          errors.push('metadata.problem_id is required')
-        }
-        if (!data.metadata.domain) {
-          errors.push('metadata.domain is required')
-        }
-        if (!data.metadata.version) {
-          errors.push('metadata.version is required')
-        }
-      }
-
-      // Basic input validation
-      if (data.input) {
-        if (!data.input.problem_summary) {
-          errors.push('input.problem_summary is required')
-        }
-        if (!data.input.scope_objective) {
-          errors.push('input.scope_objective is required')
-        }
-        if (!data.input.unknowns || !Array.isArray(data.input.unknowns) || data.input.unknowns.length === 0) {
-          errors.push('input.unknowns must be a non-empty array')
-        }
-        if (!data.input.mechanistic_notes) {
-          errors.push('input.mechanistic_notes is required')
-        }
-        if (!data.input.constraints_goals) {
-          errors.push('input.constraints_goals is required')
-        }
-      }
-
-      // Basic modeling validation
-      if (data.modeling) {
-        if (!data.modeling.model_class) {
-          errors.push('modeling.model_class is required')
-        }
-        if (!data.modeling.variables || !Array.isArray(data.modeling.variables) || data.modeling.variables.length === 0) {
-          errors.push('modeling.variables must be a non-empty array')
-        }
-        if (!data.modeling.equations || !Array.isArray(data.modeling.equations) || data.modeling.equations.length === 0) {
-          errors.push('modeling.equations must be a non-empty array')
-        }
-      }
-
-      // Basic method selection validation
-      if (data.method_selection) {
-        if (!data.method_selection.problem_type) {
-          errors.push('method_selection.problem_type is required')
-        }
-        if (!data.method_selection.chosen_methods || !Array.isArray(data.method_selection.chosen_methods) || data.method_selection.chosen_methods.length === 0) {
-          errors.push('method_selection.chosen_methods must be a non-empty array')
-        }
-      }
-
-      // Basic validation section validation
-      if (data.validation) {
-        if (typeof data.validation.unit_consistency_check !== 'boolean') {
-          errors.push('validation.unit_consistency_check must be a boolean')
-        }
-        if (typeof data.validation.mechanism_coverage_check !== 'boolean') {
-          errors.push('validation.mechanism_coverage_check must be a boolean')
-        }
-        if (data.validation.novelty_gate_pass !== true) {
-          errors.push('validation.novelty_gate_pass must be true')
-        }
-      }
-
-      // Basic output contract validation
-      if (data.output_contract) {
-        if (!data.output_contract.sections_required || !Array.isArray(data.output_contract.sections_required)) {
-          errors.push('output_contract.sections_required must be an array')
-        }
-        if (!data.output_contract.formatting) {
-          errors.push('output_contract.formatting is required')
-        }
-        if (!data.output_contract.safety_note) {
-          errors.push('output_contract.safety_note is required')
-        }
-      }
-
-      // Basic novelty assurance validation
-      if (data.novelty_assurance) {
-        if (!data.novelty_assurance.prior_work) {
-          errors.push('novelty_assurance.prior_work is required')
-        }
-        if (!data.novelty_assurance.citations || !Array.isArray(data.novelty_assurance.citations) || data.novelty_assurance.citations.length < 3) {
-          errors.push('novelty_assurance.citations must be an array with at least 3 items')
-        }
-        if (!data.novelty_assurance.novelty_claims || !Array.isArray(data.novelty_assurance.novelty_claims) || data.novelty_assurance.novelty_claims.length === 0) {
-          errors.push('novelty_assurance.novelty_claims must be a non-empty array')
-        }
-        if (!data.novelty_assurance.redundancy_check) {
-          errors.push('novelty_assurance.redundancy_check is required')
-        }
-        if (data.novelty_assurance.redundancy_check && data.novelty_assurance.redundancy_check.gate_pass !== true) {
-          errors.push('novelty_assurance.redundancy_check.gate_pass must be true')
-        }
-      }
+      const validation = await callValidateTool(data)
+      const errors = validation.status === 'error'
+        ? validation.errors.map((error) => ({
+          instancePath: error.instancePath || '/',
+          schemaPath: error.schemaPath,
+          keyword: error.keyword ?? 'schema',
+          params: error.params ?? {},
+          message: error.message,
+        }))
+        : []
 
       const result = {
-        isValid: isValid && errors.length === 0,
+        isValid: validation.status === 'ok',
         errors,
-        warnings
+        warnings: createValidationWarnings(data),
       }
 
       endCommunicationTracking('FRM', 'MCP', 'Schema validation completed', {
@@ -2577,7 +2538,7 @@ app.whenReady().then(() => {
       console.error('Validation error details:', {
         error: errorMessage,
         stack: error instanceof Error ? error.stack : undefined,
-        data: JSON.stringify(data, null, 2).slice(0, 500) + '...'
+        data: getPayloadSize(data) > 0 ? JSON.stringify(data, null, 2).slice(0, 500) + '...' : '[unserializable]'
       })
       if (error instanceof Error) {
         throw error

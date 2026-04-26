@@ -2,6 +2,46 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { resolve } from 'path'
 
+const chunkGroups = [
+  {
+    name: 'react-vendor',
+    matches: ['/node_modules/react/', '/node_modules/react-dom/', '/node_modules/scheduler/'],
+  },
+  {
+    name: 'framer-motion',
+    matches: ['/node_modules/framer-motion/'],
+  },
+  {
+    name: 'radix-ui',
+    matches: ['/node_modules/@radix-ui/'],
+  },
+  {
+    name: 'ui-components',
+    matches: [
+      '/node_modules/class-variance-authority/',
+      '/node_modules/clsx/',
+      '/node_modules/tailwind-merge/',
+      '/node_modules/tailwindcss-animate/',
+    ],
+  },
+  {
+    name: 'validation',
+    matches: ['/node_modules/ajv/', '/node_modules/ajv-formats/', '/node_modules/zod/'],
+  },
+  {
+    name: 'math',
+    matches: ['/node_modules/katex/', '/node_modules/react-katex/'],
+  },
+  {
+    name: 'forms',
+    matches: ['/node_modules/react-hook-form/'],
+  },
+  {
+    name: 'icons',
+    matches: ['/node_modules/lucide-react/'],
+  },
+] as const
+
 export default defineConfig({
   plugins: [react()],
   base: './',
@@ -27,50 +67,14 @@ export default defineConfig({
     chunkSizeWarningLimit: 1000, // Increase limit to 1MB
     rollupOptions: {
       output: {
-        manualChunks: {
-          // Vendor chunks
-          'react-vendor': ['react', 'react-dom'],
-          'framer-motion': ['framer-motion'],
-          'radix-ui': [
-            '@radix-ui/react-accordion',
-            '@radix-ui/react-alert-dialog',
-            '@radix-ui/react-checkbox',
-            '@radix-ui/react-dialog',
-            '@radix-ui/react-dropdown-menu',
-            '@radix-ui/react-icons',
-            '@radix-ui/react-label',
-            '@radix-ui/react-select',
-            '@radix-ui/react-separator',
-            '@radix-ui/react-slot',
-            '@radix-ui/react-switch',
-            '@radix-ui/react-tabs',
-            '@radix-ui/react-toast'
-          ],
-          'ui-components': [
-            'class-variance-authority',
-            'clsx',
-            'tailwind-merge',
-            'tailwindcss-animate'
-          ],
-          'validation': ['ajv', 'ajv-formats', 'zod'],
-          'math': ['katex', 'react-katex'],
-          'forms': ['react-hook-form'],
-          'icons': ['lucide-react'],
-          // App chunks
-          'editors': [
-            './src/components/editors/MetadataEditor',
-            './src/components/editors/InputEditor',
-            './src/components/editors/ModelingEditor',
-            './src/components/editors/MethodSelectionEditor',
-            './src/components/editors/SolutionAnalysisEditor',
-            './src/components/editors/ValidationEditor',
-            './src/components/editors/OutputContractEditor'
-          ],
-          'panels': [
-            './src/components/ValidationPanel',
-            './src/components/VisualizationPanel'
-          ]
-        }
+        manualChunks(id) {
+          const normalizedId = id.replace(/\\/g, '/')
+          const group = chunkGroups.find(({ matches }) =>
+            matches.some((match) => normalizedId.includes(match)),
+          )
+
+          return group?.name
+        },
       }
     },
   },

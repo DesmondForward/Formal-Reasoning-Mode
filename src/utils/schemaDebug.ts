@@ -234,7 +234,7 @@ export function withErrorHandling<T extends (...args: any[]) => any>(
 }
 
 // Development-only schema validator with detailed output
-export function validateSchemaWithDebug(data: unknown, schema: any): {
+export function validateSchemaWithDebug(data: unknown, _schema: any): {
   isValid: boolean
   errors: ValidationError[]
   warnings: string[]

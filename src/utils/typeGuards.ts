@@ -13,12 +13,9 @@ import type {
   ObjectiveSenseOption,
   ProblemTypeOption,
   SolutionRequestOption,
-  SensitivityTypeOption,
-  UncertaintyMethodOption,
   OptimizationSolverOption,
   InferenceSamplerOption,
   MathNotationOption,
-  NumberFormatOption
 } from '@/data/schema'
 import { 
   DOMAIN_OPTIONS,
@@ -29,13 +26,14 @@ import {
   OBJECTIVE_SENSE_OPTIONS,
   PROBLEM_TYPE_OPTIONS,
   SOLUTION_REQUEST_OPTIONS,
-  SENSITIVITY_TYPE_OPTIONS,
-  UNCERTAINTY_METHOD_OPTIONS,
   OPTIMIZATION_SOLVER_OPTIONS,
   INFERENCE_SAMPLER_OPTIONS,
   MATH_NOTATION_OPTIONS,
-  NUMBER_FORMAT_OPTIONS
 } from '@/data/schema'
+
+type SensitivityTypeOption = string
+type UncertaintyMethodOption = string
+type NumberFormatOption = string
 
 export interface TypeGuardResult<T = unknown> {
   isValid: boolean
@@ -99,11 +97,11 @@ export function isSolutionRequestOption(value: unknown): value is SolutionReques
 }
 
 export function isSensitivityTypeOption(value: unknown): value is SensitivityTypeOption {
-  return isString(value) && SENSITIVITY_TYPE_OPTIONS.includes(value as SensitivityTypeOption)
+  return isString(value) && value.trim().length > 0
 }
 
 export function isUncertaintyMethodOption(value: unknown): value is UncertaintyMethodOption {
-  return isString(value) && UNCERTAINTY_METHOD_OPTIONS.includes(value as UncertaintyMethodOption)
+  return isString(value) && value.trim().length > 0
 }
 
 export function isOptimizationSolverOption(value: unknown): value is OptimizationSolverOption {
@@ -119,7 +117,7 @@ export function isMathNotationOption(value: unknown): value is MathNotationOptio
 }
 
 export function isNumberFormatOption(value: unknown): value is NumberFormatOption {
-  return isString(value) && NUMBER_FORMAT_OPTIONS.includes(value as NumberFormatOption)
+  return isString(value) && value.trim().length > 0
 }
 
 // Complex type guards for FRMData sections
@@ -252,8 +250,9 @@ export function isCitation(value: unknown): value is FRMData['novelty_assurance'
   return (
     isString(citation.id) &&
     isString(citation.title) &&
-    isArray<string>(citation.authors) &&
+    isString(citation.authors) &&
     isNumber(citation.year) &&
+    isString(citation.source) &&
     (citation.venue === undefined || isString(citation.venue)) &&
     (citation.doi === undefined || isString(citation.doi)) &&
     (citation.url === undefined || isString(citation.url))
@@ -377,7 +376,7 @@ function validateFRMDataStructure(value: unknown): TypeGuardResult<FRMData> {
   
   return {
     isValid: errors.length === 0,
-    value: value as FRMData,
+    value: value as unknown as FRMData,
     errors,
     warnings
   }

@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Play, RefreshCw, Clock } from 'lucide-react'
 
-import { DOMAIN_CHOICES, type DomainChoice } from '@/data/domainMetadata'
+import { DOMAIN_CHOICES } from '@/data/domainMetadata'
 import { useGenerationTimer, formatElapsedTime } from '@/hooks/useGenerationTimer'
 
 interface DomainSelectorProps {

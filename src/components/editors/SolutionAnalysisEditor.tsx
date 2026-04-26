@@ -21,6 +21,36 @@ const toTitle = (value: string) =>
     .replace(/_/g, ' ')
     .replace(/\b\w/g, (char) => char.toUpperCase())
 
+type SimulationScenario = NonNullable<FRMData['solution_and_analysis']['simulation_scenario']>
+type NarrativeGuidance = NonNullable<FRMData['solution_and_analysis']['narrative_guidance']>
+type OptimizationProblem = NonNullable<FRMData['solution_and_analysis']['optimization_problem']>
+type InferenceProblem = NonNullable<FRMData['solution_and_analysis']['inference_problem']>
+
+const DEFAULT_SIMULATION_SCENARIO: SimulationScenario = {
+  initial_state: '',
+  parameters: '',
+  inputs: '',
+  horizon: '',
+}
+
+const DEFAULT_NARRATIVE_GUIDANCE: NarrativeGuidance = {
+  style: 'formal',
+  depth: 'detailed',
+  purpose: 'insight',
+}
+
+const DEFAULT_OPTIMIZATION_PROBLEM: OptimizationProblem = {
+  objective: '',
+  constraints: [],
+  solver: 'scipy',
+}
+
+const DEFAULT_INFERENCE_PROBLEM: InferenceProblem = {
+  prior: '',
+  likelihood: '',
+  sampler: 'mcmc',
+}
+
 export const SolutionAnalysisEditor: React.FC<SolutionAnalysisEditorProps> = ({ data, onChange }) => {
   const updateField = <K extends keyof FRMData['solution_and_analysis']>(
     field: K,
@@ -29,6 +59,38 @@ export const SolutionAnalysisEditor: React.FC<SolutionAnalysisEditorProps> = ({ 
     onChange({
       ...data,
       [field]: value,
+    })
+  }
+
+  const updateSimulationScenario = (updates: Partial<SimulationScenario>) => {
+    updateField('simulation_scenario', {
+      ...DEFAULT_SIMULATION_SCENARIO,
+      ...(data.simulation_scenario ?? {}),
+      ...updates,
+    })
+  }
+
+  const updateNarrativeGuidance = (updates: Partial<NarrativeGuidance>) => {
+    updateField('narrative_guidance', {
+      ...DEFAULT_NARRATIVE_GUIDANCE,
+      ...(data.narrative_guidance ?? {}),
+      ...updates,
+    })
+  }
+
+  const updateOptimizationProblem = (updates: Partial<OptimizationProblem>) => {
+    updateField('optimization_problem', {
+      ...DEFAULT_OPTIMIZATION_PROBLEM,
+      ...(data.optimization_problem ?? {}),
+      ...updates,
+    })
+  }
+
+  const updateInferenceProblem = (updates: Partial<InferenceProblem>) => {
+    updateField('inference_problem', {
+      ...DEFAULT_INFERENCE_PROBLEM,
+      ...(data.inference_problem ?? {}),
+      ...updates,
     })
   }
 
@@ -79,12 +141,7 @@ export const SolutionAnalysisEditor: React.FC<SolutionAnalysisEditorProps> = ({ 
               <Label>Initial State</Label>
               <Input
                 value={data.simulation_scenario?.initial_state ?? ''}
-                onChange={(event) =>
-                  updateField('simulation_scenario', {
-                    ...(data.simulation_scenario ?? {}),
-                    initial_state: event.target.value,
-                  })
-                }
+                onChange={(event) => updateSimulationScenario({ initial_state: event.target.value })}
                 placeholder="e.g., X(0) = 100"
               />
             </div>
@@ -93,12 +150,7 @@ export const SolutionAnalysisEditor: React.FC<SolutionAnalysisEditorProps> = ({ 
               <Label>Parameters</Label>
               <Input
                 value={data.simulation_scenario?.parameters ?? ''}
-                onChange={(event) =>
-                  updateField('simulation_scenario', {
-                    ...(data.simulation_scenario ?? {}),
-                    parameters: event.target.value,
-                  })
-                }
+                onChange={(event) => updateSimulationScenario({ parameters: event.target.value })}
                 placeholder="e.g., k1 = 0.1, k2 = 0.05"
               />
             </div>
@@ -107,12 +159,7 @@ export const SolutionAnalysisEditor: React.FC<SolutionAnalysisEditorProps> = ({ 
               <Label>Inputs</Label>
               <Input
                 value={data.simulation_scenario?.inputs ?? ''}
-                onChange={(event) =>
-                  updateField('simulation_scenario', {
-                    ...(data.simulation_scenario ?? {}),
-                    inputs: event.target.value,
-                  })
-                }
+                onChange={(event) => updateSimulationScenario({ inputs: event.target.value })}
                 placeholder="e.g., u(t) = step function"
               />
             </div>
@@ -121,12 +168,7 @@ export const SolutionAnalysisEditor: React.FC<SolutionAnalysisEditorProps> = ({ 
               <Label>Time Horizon</Label>
               <Input
                 value={data.simulation_scenario?.horizon ?? ''}
-                onChange={(event) =>
-                  updateField('simulation_scenario', {
-                    ...(data.simulation_scenario ?? {}),
-                    horizon: event.target.value,
-                  })
-                }
+                onChange={(event) => updateSimulationScenario({ horizon: event.target.value })}
                 placeholder="e.g., t ∈ [0, 100]"
               />
             </div>
@@ -147,8 +189,7 @@ export const SolutionAnalysisEditor: React.FC<SolutionAnalysisEditorProps> = ({ 
                 <select
                   value={data.narrative_guidance?.style ?? 'formal'}
                   onChange={(event) =>
-                    updateField('narrative_guidance', {
-                      ...(data.narrative_guidance ?? {}),
+                    updateNarrativeGuidance({
                       style: event.target.value as 'tutorial' | 'formal' | 'conversational',
                     })
                   }
@@ -165,8 +206,7 @@ export const SolutionAnalysisEditor: React.FC<SolutionAnalysisEditorProps> = ({ 
                 <select
                   value={data.narrative_guidance?.depth ?? 'detailed'}
                   onChange={(event) =>
-                    updateField('narrative_guidance', {
-                      ...(data.narrative_guidance ?? {}),
+                    updateNarrativeGuidance({
                       depth: event.target.value as 'high_level' | 'detailed',
                     })
                   }
@@ -182,8 +222,7 @@ export const SolutionAnalysisEditor: React.FC<SolutionAnalysisEditorProps> = ({ 
                 <select
                   value={data.narrative_guidance?.purpose ?? 'insight'}
                   onChange={(event) =>
-                    updateField('narrative_guidance', {
-                      ...(data.narrative_guidance ?? {}),
+                    updateNarrativeGuidance({
                       purpose: event.target.value as 'insight' | 'verification' | 'education',
                     })
                   }
@@ -210,12 +249,7 @@ export const SolutionAnalysisEditor: React.FC<SolutionAnalysisEditorProps> = ({ 
               <Label>Objective Function</Label>
               <Textarea
                 value={data.optimization_problem?.objective ?? ''}
-                onChange={(event) =>
-                  updateField('optimization_problem', {
-                    ...(data.optimization_problem ?? {}),
-                    objective: event.target.value,
-                  })
-                }
+                onChange={(event) => updateOptimizationProblem({ objective: event.target.value })}
                 placeholder="e.g., minimize integral of X(t) dt"
                 rows={2}
               />
@@ -226,8 +260,7 @@ export const SolutionAnalysisEditor: React.FC<SolutionAnalysisEditorProps> = ({ 
               <Textarea
                 value={(data.optimization_problem?.constraints ?? []).join('\n')}
                 onChange={(event) =>
-                  updateField('optimization_problem', {
-                    ...(data.optimization_problem ?? {}),
+                  updateOptimizationProblem({
                     constraints: event.target.value
                       .split('\n')
                       .map((constraint) => constraint.trim())
@@ -243,12 +276,7 @@ export const SolutionAnalysisEditor: React.FC<SolutionAnalysisEditorProps> = ({ 
               <Label>Solver</Label>
               <Input
                 value={data.optimization_problem?.solver ?? ''}
-                onChange={(event) =>
-                  updateField('optimization_problem', {
-                    ...(data.optimization_problem ?? {}),
-                    solver: event.target.value,
-                  })
-                }
+                onChange={(event) => updateOptimizationProblem({ solver: event.target.value })}
                 placeholder="e.g., scipy, cvxpy, gurobi"
               />
             </div>
@@ -267,12 +295,7 @@ export const SolutionAnalysisEditor: React.FC<SolutionAnalysisEditorProps> = ({ 
               <Label>Prior Distribution</Label>
               <Input
                 value={data.inference_problem?.prior ?? ''}
-                onChange={(event) =>
-                  updateField('inference_problem', {
-                    ...(data.inference_problem ?? {}),
-                    prior: event.target.value,
-                  })
-                }
+                onChange={(event) => updateInferenceProblem({ prior: event.target.value })}
                 placeholder="e.g., Gaussian(0, 1)"
               />
             </div>
@@ -281,12 +304,7 @@ export const SolutionAnalysisEditor: React.FC<SolutionAnalysisEditorProps> = ({ 
               <Label>Likelihood Function</Label>
               <Input
                 value={data.inference_problem?.likelihood ?? ''}
-                onChange={(event) =>
-                  updateField('inference_problem', {
-                    ...(data.inference_problem ?? {}),
-                    likelihood: event.target.value,
-                  })
-                }
+                onChange={(event) => updateInferenceProblem({ likelihood: event.target.value })}
                 placeholder="e.g., Gaussian(X_obs, sigma^2)"
               />
             </div>
@@ -295,12 +313,7 @@ export const SolutionAnalysisEditor: React.FC<SolutionAnalysisEditorProps> = ({ 
               <Label>Sampler</Label>
               <Input
                 value={data.inference_problem?.sampler ?? ''}
-                onChange={(event) =>
-                  updateField('inference_problem', {
-                    ...(data.inference_problem ?? {}),
-                    sampler: event.target.value,
-                  })
-                }
+                onChange={(event) => updateInferenceProblem({ sampler: event.target.value })}
                 placeholder="e.g., mcmc, vi, hmc, nuts"
               />
             </div>

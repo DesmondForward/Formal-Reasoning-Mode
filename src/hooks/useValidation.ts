@@ -90,20 +90,9 @@ export const useValidation = (schema: any) => {
         strict: false,
         addUsedSchema: false,
         validateSchema: false,
-        loadSchema: false,
-        // Add better error reporting
-        errorDataPath: 'property',
         removeAdditional: false,
         useDefaults: false,
-        // Add more detailed error reporting
         messages: true,
-        code: {
-          // Custom error codes for better debugging
-          'validation_failed': 'Schema validation failed',
-          'missing_required': 'Required property is missing',
-          'invalid_type': 'Invalid data type',
-          'pattern_mismatch': 'Value does not match required pattern'
-        }
       })
       addFormats(ajvInstance.current)
     }
@@ -116,8 +105,9 @@ export const useValidation = (schema: any) => {
         validateFnRef.current = ajv.compile<FRMData>(schema)
       } catch (error) {
         console.warn('Failed to compile schema, using fallback validation:', error)
-        // Create a fallback validation function that always returns true
-        validateFnRef.current = (() => true) as ValidateFunction<FRMData>
+        const fallbackValidate = (() => true) as unknown as ValidateFunction<FRMData>
+        fallbackValidate.errors = null
+        validateFnRef.current = fallbackValidate
       }
     }
     return validateFnRef.current
@@ -190,7 +180,7 @@ export const useValidation = (schema: any) => {
           const ipcResult = await window.electronAPI.validateSchema(candidate)
           
           const ipcErrors = Array.isArray(ipcResult.errors)
-            ? ipcResult.errors.map((error: unknown) => String(error))
+            ? ipcResult.errors
             : []
           const ipcWarnings = Array.isArray(ipcResult.warnings)
             ? ipcResult.warnings.map((warning: unknown) => String(warning))
@@ -198,14 +188,29 @@ export const useValidation = (schema: any) => {
 
           const result: ValidationResult = {
             isValid: ipcResult.isValid,
-            errors: ipcErrors.map((error: string) => ({
-              instancePath: '',
-              schemaPath: '',
-              keyword: 'ipc',
-              params: {},
-              message: error,
-            })),
-            warnings: ipcWarnings,
+            errors: ipcErrors.map((error: unknown) => {
+              if (error && typeof error === 'object') {
+                const record = error as Record<string, unknown>
+                return {
+                  instancePath: typeof record.instancePath === 'string' ? record.instancePath : '',
+                  schemaPath: typeof record.schemaPath === 'string' ? record.schemaPath : '',
+                  keyword: typeof record.keyword === 'string' ? record.keyword : 'ipc',
+                  params: record.params && typeof record.params === 'object'
+                    ? record.params as Record<string, unknown>
+                    : {},
+                  message: typeof record.message === 'string' ? record.message : String(error),
+                }
+              }
+
+              return {
+                instancePath: '',
+                schemaPath: '',
+                keyword: 'ipc',
+                params: {},
+                message: String(error),
+              }
+            }),
+            warnings: Array.from(new Set([...ipcWarnings, ...createWarnings(candidate)])),
           }
 
           // Cache the result

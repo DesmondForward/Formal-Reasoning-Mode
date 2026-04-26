@@ -116,8 +116,8 @@ export const VisualizationPanel: React.FC<VisualizationPanelProps> = ({ data }) 
                 {method.name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
               </Badge>
               <div className="text-xs text-slate-500">
-                abs_tol: {method.tolerances?.abs_tol || 'N/A'},
-                rel_tol: {method.tolerances?.rel_tol || 'N/A'}
+                absolute: {method.tolerances?.absolute ?? 'N/A'},
+                relative: {method.tolerances?.relative ?? 'N/A'}
               </div>
             </div>
             <div className="text-sm text-slate-600 dark:text-slate-400">

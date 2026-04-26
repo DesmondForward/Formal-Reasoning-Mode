@@ -4,9 +4,6 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { 
   Clock,
-  AlertCircle,
-  CheckCircle,
-  Send,
   MessageSquare,
   Copy,
   ExternalLink
@@ -106,8 +103,7 @@ export const VirtualizedEventList: React.FC<VirtualizedEventListProps> = ({
           }}
         >
           <AnimatePresence>
-            {visibleEvents.map((event, index) => {
-              const actualIndex = visibleRange.startIndex + index
+            {visibleEvents.map((event) => {
               const priority = getEventPriority(event)
               const status = getEventStatus(event)
               const isSelected = selectedEventId === event.id
