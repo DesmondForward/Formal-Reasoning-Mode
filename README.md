@@ -207,8 +207,10 @@ AI_PROVIDER=openai
 
 # OpenAI Configuration (for AI example generation)
 OPENAI_API_KEY=your_openai_api_key_here
-OPENAI_MODEL=gpt-5-2025-08-07
-OPENAI_API_URL=https://api.openai.com/v1/chat/completions
+OPENAI_MODEL=gpt-5.5
+OPENAI_API_URL=https://api.openai.com/v1/responses
+OPENAI_REASONING_EFFORT=medium
+OPENAI_TEXT_VERBOSITY=low
 
 # Google Gemini Configuration
 GOOGLE_API_KEY=your_google_api_key_here
@@ -225,7 +227,7 @@ VITE_DEV_SERVER_URL=http://localhost:3000
 ```
 
 **Supported AI Providers:**
-- **OpenAI**: GPT-5, GPT-4o, GPT-4o-mini, GPT-4-turbo
+- **OpenAI**: GPT-5.5, GPT-5.4, GPT-5.2, GPT-5, GPT-4o, GPT-4o-mini, GPT-4-turbo
 - **Google**: Gemini 2.5 Pro, Gemini 2.5 Flash, Gemini 2.5 Flash-Lite, Gemini 1.5 Pro, Gemini 1.5 Flash
 - **Anthropic**: Claude 3.5 Sonnet, Claude 3.5 Haiku, Claude 3 Opus, Claude 3 Sonnet, Claude 3 Haiku
 

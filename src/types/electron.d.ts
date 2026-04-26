@@ -1,8 +1,8 @@
 export interface CommunicationEvent {
   id: string
   timestamp: Date
-  source: 'FRM' | 'MCP' | 'GPT-5'
-  target: 'FRM' | 'MCP' | 'GPT-5'
+  source: string
+  target: string
   type: 'request' | 'response' | 'error' | 'info'
   message: string
   data?: any

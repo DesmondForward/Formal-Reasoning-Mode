@@ -44,7 +44,7 @@
     "baseline-browser-mapping": "^2.9.6",
     "concurrently": "^8.2.2",
     "cross-env": "^10.1.0",
-    "electron": "^38.3.0",
+    "electron": "^41.0.2",
     "electron-builder": "^26.4.0",
     "eslint": "^9.39.2",
     "eslint-plugin-react": "^7.33.2",

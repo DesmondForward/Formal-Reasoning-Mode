@@ -28,13 +28,17 @@ import {
   ExternalLink,
   TrendingUp
 } from 'lucide-react'
-import { useCommunicationContext, CommunicationEvent } from '@/contexts/CommunicationContext'
+import { useCommunicationContext } from '@/contexts/CommunicationContext'
+import type { CommunicationEvent } from '@/hooks/useCommunication'
 import { copyToClipboard as copyToClipboardUtil } from '@/utils/clipboard'
 
+const PARTICIPANT_FILTERS = ['all', 'FRM', 'MCP', 'OpenAI'] as const
+type ParticipantFilter = typeof PARTICIPANT_FILTERS[number]
+
 const CommunicationLogPanel: React.FC = () => {
-  const { events, isConnected, connectionStatus, stats, clearEvents, clearInactiveEvents, addEvent } = useCommunicationContext()
+  const { events, isConnected, connectionStatus, stats, clearEvents, clearInactiveEvents } = useCommunicationContext()
   const [isExpanded, setIsExpanded] = useState(true)
-  const [filter, setFilter] = useState<'all' | 'FRM' | 'MCP' | 'GPT-5'>('all')
+  const [filter, setFilter] = useState<ParticipantFilter>('all')
   const [typeFilter, setTypeFilter] = useState<'all' | 'request' | 'response' | 'error' | 'info'>('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [isPaused, setIsPaused] = useState(false)
@@ -54,7 +58,14 @@ const CommunicationLogPanel: React.FC = () => {
   // Enhanced filtering with search
   const filteredEvents = useMemo(() => {
     return events.filter(event => {
-      const sourceMatch = filter === 'all' || event.source === filter
+      const isOpenAIEvent = event.source.toLowerCase().startsWith('gpt-') ||
+        event.target.toLowerCase().startsWith('gpt-') ||
+        event.source === 'OpenAI' ||
+        event.target === 'OpenAI'
+      const sourceMatch = filter === 'all' ||
+        event.source === filter ||
+        event.target === filter ||
+        (filter === 'OpenAI' && isOpenAIEvent)
       const typeMatch = typeFilter === 'all' || event.type === typeFilter
       const searchMatch = !searchQuery || 
         event.message.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -185,13 +196,15 @@ const CommunicationLogPanel: React.FC = () => {
   }
 
   const getSourceColor = (source: string) => {
+    if (source.toLowerCase().startsWith('gpt-') || source === 'OpenAI') {
+      return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+    }
+
     switch (source) {
       case 'FRM':
         return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
       case 'MCP':
         return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
-      case 'GPT-5':
-        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
       default:
         return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
     }
@@ -390,16 +403,16 @@ const CommunicationLogPanel: React.FC = () => {
             </div>
             
             <div className="space-y-2">
-              <div className="flex flex-wrap gap-1" role="group" aria-label="Filter by source">
-                {['all', 'FRM', 'MCP', 'GPT-5'].map((source) => (
+              <div className="flex flex-wrap gap-1" role="group" aria-label="Filter by participant">
+                {PARTICIPANT_FILTERS.map((source) => (
                   <Button
                     key={source}
                     variant={filter === source ? 'default' : 'outline'}
                     size="sm"
-                    onClick={() => setFilter(source as any)}
+                    onClick={() => setFilter(source)}
                     className="h-6 px-2 text-xs flex-shrink-0"
                     aria-pressed={filter === source}
-                    aria-label={`Filter by ${source} source`}
+                    aria-label={`Filter by ${source} participant`}
                   >
                     {source}
                   </Button>
@@ -467,7 +480,7 @@ const CommunicationLogPanel: React.FC = () => {
 
                       // Test LLM ping
                       if (window.electronAPI?.pingLLM) {
-                        // This will trigger real IPC communication events for GPT-5
+                        // This will trigger real IPC communication events for the configured OpenAI model
                         await window.electronAPI.pingLLM()
                       }
                     } catch (error) {

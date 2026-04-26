@@ -12,8 +12,8 @@ import { callValidateTool } from './mcp/frmMcpServer.js'
 interface CommunicationEvent {
   id: string
   timestamp: Date
-  source: 'FRM' | 'MCP' | 'GPT-5' | string
-  target: 'FRM' | 'MCP' | 'GPT-5' | string
+  source: string
+  target: string
   type: 'request' | 'response' | 'error' | 'info'
   message: string
   data?: any
@@ -38,7 +38,7 @@ const sendCommunicationEvent = (event: Omit<CommunicationEvent, 'id' | 'timestam
   }
 }
 
-const startCommunicationTracking = (source: 'FRM' | 'MCP' | 'GPT-5' | string, target: 'FRM' | 'MCP' | 'GPT-5' | string, message: string, data?: any) => {
+const startCommunicationTracking = (source: string, target: string, message: string, data?: any) => {
   communicationStartTime = Date.now()
   sendCommunicationEvent({
     source,
@@ -49,7 +49,7 @@ const startCommunicationTracking = (source: 'FRM' | 'MCP' | 'GPT-5' | string, ta
   })
 }
 
-const endCommunicationTracking = (source: 'FRM' | 'MCP' | 'GPT-5' | string, target: 'FRM' | 'MCP' | 'GPT-5' | string, message: string, data?: any, isError = false) => {
+const endCommunicationTracking = (source: string, target: string, message: string, data?: any, isError = false) => {
   const duration = communicationStartTime ? Date.now() - communicationStartTime : undefined
   communicationStartTime = null
 
@@ -136,25 +136,35 @@ const loadEnvIfPresent = () => {
 
 loadEnvIfPresent()
 
-const getOpenAIConfig = () => {
-  const model = process.env.OPENAI_MODEL ?? 'gpt-5-2025-08-07'
+const OPENAI_RESPONSES_ENDPOINT = 'https://api.openai.com/v1/responses'
+const DEFAULT_OPENAI_MODEL = 'gpt-5.5'
+const DEFAULT_OPENAI_REASONING_EFFORT = 'medium'
+const DEFAULT_OPENAI_TEXT_VERBOSITY = 'low'
 
-  // Model-specific endpoint selection (ignores OPENAI_API_URL for GPT-5 models)
+const isOpenAIResponsesModel = (model: string) => model.toLowerCase().includes('gpt-5')
+
+const getOpenAIConfig = () => {
+  const model = process.env.OPENAI_MODEL ?? DEFAULT_OPENAI_MODEL
+
+  // Model-specific endpoint selection (ignores OPENAI_API_URL for GPT-5 family models)
   const getApiUrl = (model: string) => {
-    // GPT-5 models (including Pro variants) use /v1/responses endpoint
-    if (model.includes('gpt-5')) {
-      return 'https://api.openai.com/v1/responses'
+    if (isOpenAIResponsesModel(model)) {
+      return OPENAI_RESPONSES_ENDPOINT
     }
     // Default to standard chat completions endpoint
     return process.env.OPENAI_API_URL ?? 'https://api.openai.com/v1/chat/completions'
   }
 
   const apiUrl = getApiUrl(model)
+  const reasoningEffort = process.env.OPENAI_REASONING_EFFORT ?? DEFAULT_OPENAI_REASONING_EFFORT
+  const textVerbosity = process.env.OPENAI_TEXT_VERBOSITY ?? DEFAULT_OPENAI_TEXT_VERBOSITY
 
   const config = {
     apiKey: process.env.OPENAI_API_KEY,
-    model: model,
-    apiUrl: apiUrl,
+    model,
+    apiUrl,
+    reasoningEffort,
+    textVerbosity,
   }
 
   // Debug logging
@@ -163,9 +173,10 @@ const getOpenAIConfig = () => {
     apiUrl: config.apiUrl,
     hasApiKey: !!config.apiKey,
     envOpenAIUrl: process.env.OPENAI_API_URL,
-    isGpt5: model.includes('gpt-5'),
-    isGpt5Pro: model.includes('gpt-5'), // Treat all GPT-5 as Pro/Responses capable
-    endpointType: model.includes('gpt-5') ? 'responses' : 'default'
+    reasoningEffort: config.reasoningEffort,
+    textVerbosity: config.textVerbosity,
+    isResponsesModel: isOpenAIResponsesModel(model),
+    endpointType: isOpenAIResponsesModel(model) ? 'responses' : 'default'
   })
 
   return config
@@ -200,9 +211,8 @@ const getAIConfig = () => {
 
 // Helper function to get the correct API URL for OpenAI models
 const getOpenAIUrl = (model: string) => {
-  // GPT-5 models (including Pro variants) use /v1/responses endpoint
-  if (model.includes('gpt-5')) {
-    return 'https://api.openai.com/v1/responses'
+  if (isOpenAIResponsesModel(model)) {
+    return OPENAI_RESPONSES_ENDPOINT
   }
   // Default to standard chat completions endpoint
   return process.env.OPENAI_API_URL ?? 'https://api.openai.com/v1/chat/completions'
@@ -257,11 +267,9 @@ const formatAIRequest = (provider: string, model: string, messages: any[], optio
       }
     case 'openai':
     default:
-      // Check if this is GPT-5 (uses /v1/responses endpoint)
-      const isGpt5 = model.includes('gpt-5')
+      const isResponsesModel = isOpenAIResponsesModel(model)
 
-      if (isGpt5) {
-        // GPT-5 uses different parameter structure for /v1/responses
+      if (isResponsesModel) {
         return {
           url: baseUrl,
           data: {
@@ -269,7 +277,11 @@ const formatAIRequest = (provider: string, model: string, messages: any[], optio
             input: messages,
             max_output_tokens: options?.max_tokens || 100000,
             background: true, // Enable async mode to avoid connection timeouts
+            reasoning: {
+              effort: process.env.OPENAI_REASONING_EFFORT ?? DEFAULT_OPENAI_REASONING_EFFORT
+            },
             text: {
+              verbosity: process.env.OPENAI_TEXT_VERBOSITY ?? DEFAULT_OPENAI_TEXT_VERBOSITY,
               format: {
                 type: 'json_object'
               }
@@ -1137,7 +1149,7 @@ const extractResponseText = (payload: any): string => {
     throw new Error('OpenAI responded with an empty payload.')
   }
 
-  // Handle GPT-5 Pro /v1/responses format
+  // Handle OpenAI /v1/responses format
   if (typeof payload.text === 'string') {
     return payload.text
   }
@@ -1512,7 +1524,7 @@ const pingLLM = async () => {
       { role: 'user', content: 'Ping - respond with "OK" to confirm connection.' },
     ]
 
-    const isGpt5Pro = model.includes('gpt-5')
+    const isResponsesModel = isOpenAIResponsesModel(model)
     const providerLower = provider.toLowerCase()
 
     // Build request config based on provider and model type
@@ -1552,12 +1564,11 @@ const pingLLM = async () => {
           'anthropic-version': '2023-06-01'
         }
       }
-    } else if (isGpt5Pro) {
-      // GPT-5 Pro must use /v1/responses endpoint with specific structure
+    } else if (isResponsesModel) {
+      // GPT-5 family models use /v1/responses with a different request structure.
       // For ping, we don't include text.format to avoid JSON format requirement
-      // Note: max_output_tokens minimum is 16 for GPT-5 Pro
       requestConfig = {
-        url: 'https://api.openai.com/v1/responses',
+        url: OPENAI_RESPONSES_ENDPOINT,
         data: {
           model,
           input: messages,
@@ -1614,9 +1625,8 @@ const pingLLM = async () => {
     } else if (provider.toLowerCase() === 'anthropic') {
       responseText = payload?.content?.[0]?.text || ''
     } else {
-      // OpenAI format - handle GPT-5 Pro vs standard models
-      if (isGpt5Pro) {
-        // GPT-5 Pro uses /v1/responses endpoint with different structure
+      // OpenAI format - handle Responses API vs standard chat completions.
+      if (isResponsesModel) {
         responseText = extractResponseText(payload)
       } else {
         // Standard OpenAI models use /v1/chat/completions
@@ -1703,7 +1713,7 @@ const pingLLM = async () => {
     // If the error is a 400 and we're using gpt-5-nano, try with gpt-4o as fallback
     if (error && typeof error === 'object' && 'response' in error) {
       const axiosError = error as any
-      if (axiosError.response?.status === 400 && model.includes('gpt-5-nano')) {
+      if (axiosError.response?.status === 400 && model.toLowerCase().includes('gpt-5-nano')) {
         console.log('GPT-5-nano failed, trying with gpt-4o as fallback...')
         try {
           const fallbackRequest = {
@@ -1795,11 +1805,11 @@ const generateAISchema = async (options: SchemaGenerationOptions = {}) => {
   // Track request to the selected AI model
   startCommunicationTracking('FRM', model, 'Generate AI schema', { options, model })
 
-  // Determine timeout based on provider and model
-  // Gemini and GPT-5-pro models need ~40 minutes for long generation tasks
+  // Determine timeout based on provider and model.
+  // Gemini and GPT-5 family models need ~40 minutes for long generation tasks.
   const isGemini = provider.toLowerCase() === 'google'
-  const isGpt5Pro = model.includes('gpt-5')
-  const requestTimeout = (isGemini || isGpt5Pro)
+  const isResponsesModel = isOpenAIResponsesModel(model)
+  const requestTimeout = (isGemini || isResponsesModel)
     ? 2400000  // 40 minutes for Gemini and GPT-5 models (40 * 60 * 1000)
     : 2700000  // 45 minutes for other models (45 * 60 * 1000)
 
@@ -1829,7 +1839,7 @@ const generateAISchema = async (options: SchemaGenerationOptions = {}) => {
       timeoutMs: requestTimeout,
       timeoutMinutes: requestTimeout / 60000,
       isGemini,
-      isGpt5Pro
+      isResponsesModel
     })
 
     // Helper function to create fresh agents for each retry attempt
@@ -1931,11 +1941,11 @@ const generateAISchema = async (options: SchemaGenerationOptions = {}) => {
     } else if (provider.toLowerCase() === 'anthropic') {
       responseText = payload?.content?.[0]?.text || ''
     } else {
-      // OpenAI format - handle both old and new API formats
-      const isGpt5Pro = model.includes('gpt-5')
+      // OpenAI format - handle both chat completions and Responses API formats.
+      const isResponsesModel = isOpenAIResponsesModel(model)
 
-      if (isGpt5Pro) {
-        // GPT-5 uses /v1/responses endpoint with background mode
+      if (isResponsesModel) {
+        // GPT-5 family models use /v1/responses with background mode.
         // Check if this is a background response (status will be 'queued' or 'in_progress')
         if (payload?.status === 'queued' || payload?.status === 'in_progress') {
           logToFile('Background mode detected, polling for completion...', {
@@ -1964,7 +1974,7 @@ const generateAISchema = async (options: SchemaGenerationOptions = {}) => {
           throw error
         } else {
           // Direct response (status === 'completed' or no status for sync)
-          logToFile('GPT-5 Pro payload structure:', {
+          logToFile('OpenAI Responses payload structure:', {
             keys: Object.keys(payload),
             hasText: 'text' in payload,
             hasOutput: 'output' in payload,
@@ -2024,7 +2034,7 @@ const generateAISchema = async (options: SchemaGenerationOptions = {}) => {
           : `FRM MCP validation failed: ${validation.summary}`
 
       endCommunicationTracking('FRM', 'MCP', 'Validation failed', { errors: validation.errors, summary: validation.summary }, true)
-      endCommunicationTracking('FRM', 'GPT-5', 'Generation completed with validation errors', { validationErrors: validation.errors.length }, true)
+      endCommunicationTracking('FRM', model, 'Generation completed with validation errors', { validationErrors: validation.errors.length }, true)
 
       throw new Error(message)
     }
